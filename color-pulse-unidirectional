@@ -1,0 +1,68 @@
+// configurable unidirectional color pulse with decay trail
+// starts at left / lowest element and moves toward the right
+// works with shadertoy + openrgb
+
+void mainImage(out vec4 fragColor, in vec2 fragCoord)
+{
+    vec2 resolution;
+    vec3 color;
+    float pulsePositionLeft; // progress of pulse head from LHS / start
+    float ledIndex;  // position of individual LED
+    float time; // clock, used to calculate cycle progress
+    float decayFactor;  // speed that brightness drops off with time / distance from pulse head. higher = quicker dropoff / darker.
+    float pulseDuration; // time taken for pulse to move from beginning to end of display
+    float pauseDuration; // time to wait between pulses
+    float totalCycleTime; // time between one pulse beginning and the next one starting
+    float cyclePosition; // current progress through totalCycle
+    float totalSteps; // total "width" of a cycle based on equally timed display state changes
+    float distLeft; // distance per LED from head of pulse on LHS / start
+    float brightnessRed = 0.0; // color values range from 0.0 to 1.0
+    float brightnessGreen = 1.0;
+    float brightnessBlue = 0.0;
+    const float numLEDs = 12.0; // Change this value to the number of LEDs in the display
+    const float speed = 1.5; // speed setting: higher speed = faster movement
+    const float pulseHeadSize = 1.0; // width in elements of initial pulse, should be non-negative;
+    
+    
+    // Get the resolution from Shadertoy
+    resolution = iResolution.xy;
+    
+     // Adjust the display to suit the number of LEDs
+    ledIndex = fragCoord.x / resolution.x * numLEDs;
+
+    // Get the current time from shadertoy
+    time = iTime;
+    
+    decayFactor = 0.5;
+    time = time * speed;
+    pulseDuration = 2.0;    
+    pauseDuration = 3.0;
+    totalCycleTime = pulseDuration + pauseDuration;
+    cyclePosition = mod(time, totalCycleTime) / pulseDuration;
+    totalSteps = numLEDs * (totalCycleTime / pulseDuration);
+    pulsePositionLeft = cyclePosition * numLEDs;
+    color.x = brightnessRed;
+    color.y = brightnessGreen;
+    color.z = brightnessBlue;
+
+ 
+    if (pulsePositionLeft >= ledIndex)
+    {
+        distLeft = (ledIndex - pulsePositionLeft);
+    }
+    else {
+        distLeft = (ledIndex - (pulsePositionLeft + totalSteps));
+    }
+
+    // head of pulse
+    if (distLeft > (-1.0 * pulseHeadSize)) {
+        color = color * 1.0;  
+    }
+    // trail after head of pulse
+    else {
+        color = color * exp((distLeft+pulseHeadSize) * decayFactor);
+    }
+
+    // Set output
+    fragColor = vec4(color.x, color.y, color.z, 1.0);
+}

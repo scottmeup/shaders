@@ -1,39 +1,54 @@
 // configurable unidirectional color pulse with decay trail
-// starts at left / lowest element and moves toward the right
-// works with shadertoy + openrgb
 
 void mainImage(out vec4 fragColor, in vec2 fragCoord)
 {
-    vec2 resolution;
-    vec3 color;
-    bool reverse; // flip direction of movement. defaults to Left->Right, Top->Bottom
-    bool horizontal; // move horizontally. if false will move vertically instead.
-    float pulsePositionLeft; // progress of pulse head from LHS / start
-    float ledIndex;  // position of individual LED
-    float time; // clock, used to calculate cycle progress
-    float decayFactor;  // speed that brightness drops off with time / distance from pulse head. higher = quicker dropoff / darker.
-    float pulseDuration; // time taken for pulse to move from beginning to end of display
-    float pauseDuration; // time to wait between pulses
-    float totalCycleTime; // time between one pulse beginning and the next one starting
+    float backgroundBlue; // background color - values range from 0.0 to 1.0
+    vec3 backgroundColor; //  combined color vector for the background
+    float backgroundGreen; // background color - values range from 0.0 to 1.0
+    float backgroundRed; // background color - values range from 0.0 to 1.0
+    float brightnessBlue; // pulse color - values range from 0.0 to 1.0
+    float brightnessGreen; // pulse color - values range from 0.0 to 1.0
+    float brightnessRed; // pulse color - values range from 0.0 to 1.0
     float cyclePosition; // current progress through totalCycle
-    float totalSteps; // total "width" of a cycle based on equally timed display state changes
+    float decayFactor;  // speed that brightness drops off with time / distance from pulse head. higher = quicker dropoff / darker.
     float distLeft; // distance per LED from head of pulse on LHS / start
-    float brightnessRed = 0.0; // color values range from 0.0 to 1.0
-    float brightnessGreen = 1.0;
-    float brightnessBlue = 0.0;
-    const float numLEDs = 12.0; // Change this value to the number of LEDs in the display
-    const float speed = 1.5; // speed setting: higher speed = faster movement
-    const float pulseHeadSize = 1.0; // width in elements of initial pulse, should be non-negative;
+    bool horizontal; // move horizontally. if false will move vertically instead.
+    float ledIndex;  // position of individual LED
+    float minimumBrightness; // stop decaying brightness below this level
+    float numLEDs; // Change this value to the number of LEDs in the display
+    vec3 outputColor; // combined background + pulse color vector
+    float pauseDuration; // time to wait between pulses
+    vec3 pulseColor; // combined color vector for the moving pulse
+    float pulseDuration; // time taken for pulse to move from beginning to end of display
+    float pulseHeadSize; // width in LED elements for the initial pulse
+    float pulsePositionLeft; // progress of pulse head from LHS / start
+    vec2 resolution; // resolution of display device, provided by the software
+    bool reverse; // flip direction of movement. defaults to Left->Right, Top->Bottom
+    float speed; // speed setting: higher speed = faster movement
+    float time; // clock, used to calculate cycle progress
+    float totalCycleTime; // time between one pulse beginning and the next one starting
+    float totalSteps; // total "width" of a cycle based on equally timed display state changes
+
     
-    
+    // Configuration section
+    backgroundBlue = 0.0;
+    backgroundGreen = 0.0;
+    backgroundRed = 0.0;
+    brightnessBlue = 0.0;
+    brightnessGreen = 1.0;
+    brightnessRed = 0.0;
+    decayFactor = 0.25;
+    horizontal = false;
+    minimumBrightness = 0.125;
+    numLEDs = 6.0;
+    pauseDuration = 4.0;
+    pulseDuration = 2.0;    
+    pulseHeadSize = 1.0;
+    reverse = false;
+    speed = 2.0;
 
     // Get the current time from shadertoy
     time = iTime;
-    
-    reverse = false;
-    horizontal = true;
-    decayFactor = 0.5;
-    time = time * speed;
     
     // Get the resolution from Shadertoy
     resolution = iResolution.xy;
@@ -46,20 +61,21 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
         ledIndex = fragCoord.y / resolution.y * numLEDs;
         reverse = !reverse;
     }
-       
+    
+    time = time * speed;
     if (reverse){
     time = time * -1.0;
     }
-    
-    pulseDuration = 2.0;    
-    pauseDuration = 3.0;
     totalCycleTime = pulseDuration + pauseDuration;
     cyclePosition = mod(time, totalCycleTime) / pulseDuration;
     totalSteps = numLEDs * (totalCycleTime / pulseDuration);
     pulsePositionLeft = cyclePosition * numLEDs;
-    color.x = brightnessRed;
-    color.y = brightnessGreen;
-    color.z = brightnessBlue;
+    pulseColor.x = brightnessRed;
+    pulseColor.y = brightnessGreen;
+    pulseColor.z = brightnessBlue;
+    backgroundColor.x = backgroundRed;
+    backgroundColor.y = backgroundGreen;
+    backgroundColor.z = backgroundBlue;
  
         
     if(reverse){
@@ -70,13 +86,13 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
         // Head of pulse
         if (distLeft <= pulseHeadSize) {
             if (distLeft >= 0.0){
-                color = color * 1.0;
+                pulseColor = pulseColor * 1.0;
             }
 
         }
         else {
-            // Decay trail after head of pulse
-            color = color * exp(((distLeft * -1.0) + pulseHeadSize) * decayFactor);
+            // Trail after head of pulse - reversed direction
+            pulseColor = max(pulseColor * exp(((distLeft * -1.0) + pulseHeadSize) * decayFactor), pulseColor*minimumBrightness);
         }
     }
     else{
@@ -89,15 +105,19 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
 
         // Head of pulse
         if (distLeft > (-1.0 * pulseHeadSize)) {
-            color = color * 1.0;  
+            pulseColor = pulseColor * 1.0;  
         }
-        // Trail after head of pulse
+        // Trail after head of pulse - normal direction
         else {
-            color = color * exp((distLeft+pulseHeadSize) * decayFactor);
+            pulseColor = max(pulseColor * exp((distLeft+pulseHeadSize) * decayFactor), pulseColor*minimumBrightness);
         }
     }
+    
+    outputColor.x = pulseColor.x + backgroundColor.x;
+    outputColor.y = pulseColor.y + backgroundColor.y;
+    outputColor.z = pulseColor.z + backgroundColor.z;
 
        
     // Set output
-    fragColor = vec4(color.x, color.y, color.z, 1.0);
+    fragColor = vec4(outputColor.x, outputColor.y, outputColor.z, 1.0);
 }

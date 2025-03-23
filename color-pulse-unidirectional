@@ -64,7 +64,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
     
     time = time * speed;
     if (reverse){
-    time = time * -1.0;
+        time = time * -1.0;
     }
     totalCycleTime = pulseDuration + pauseDuration;
     cyclePosition = mod(time, totalCycleTime) / pulseDuration;

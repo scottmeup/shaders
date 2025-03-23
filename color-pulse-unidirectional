@@ -6,6 +6,8 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
 {
     vec2 resolution;
     vec3 color;
+    bool reverse; // flip direction of movement. defaults to Left->Right, Top->Bottom
+    bool horizontal; // move horizontally. if false will move vertically instead.
     float pulsePositionLeft; // progress of pulse head from LHS / start
     float ledIndex;  // position of individual LED
     float time; // clock, used to calculate cycle progress
@@ -24,17 +26,31 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
     const float pulseHeadSize = 1.0; // width in elements of initial pulse, should be non-negative;
     
     
-    // Get the resolution from Shadertoy
-    resolution = iResolution.xy;
-    
-     // Adjust the display to suit the number of LEDs
-    ledIndex = fragCoord.x / resolution.x * numLEDs;
 
     // Get the current time from shadertoy
     time = iTime;
     
+    reverse = false;
+    horizontal = true;
     decayFactor = 0.5;
     time = time * speed;
+    
+    // Get the resolution from Shadertoy
+    resolution = iResolution.xy;
+    
+    // Adjust the display to suit the number of LEDs
+    if (horizontal){
+        ledIndex = fragCoord.x / resolution.x * numLEDs;
+    }
+    else{
+        ledIndex = fragCoord.y / resolution.y * numLEDs;
+        reverse = !reverse;
+    }
+       
+    if (reverse){
+    time = time * -1.0;
+    }
+    
     pulseDuration = 2.0;    
     pauseDuration = 3.0;
     totalCycleTime = pulseDuration + pauseDuration;
@@ -44,25 +60,44 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
     color.x = brightnessRed;
     color.y = brightnessGreen;
     color.z = brightnessBlue;
-
  
-    if (pulsePositionLeft >= ledIndex)
-    {
-        distLeft = (ledIndex - pulsePositionLeft);
+        
+    if(reverse){
+        distLeft = ledIndex - (pulsePositionLeft);
+        if (distLeft <0.0){
+            distLeft = distLeft + totalSteps;
+        }
+        // Head of pulse
+        if (distLeft <= pulseHeadSize) {
+            if (distLeft >= 0.0){
+                color = color * 1.0;
+            }
+
+        }
+        else {
+            // Decay trail after head of pulse
+            color = color * exp(((distLeft * -1.0) + pulseHeadSize) * decayFactor);
+        }
     }
-    else {
-        distLeft = (ledIndex - (pulsePositionLeft + totalSteps));
+    else{
+        if (pulsePositionLeft >= ledIndex){
+            distLeft = (ledIndex - pulsePositionLeft);
+        }
+        else {
+            distLeft = (ledIndex - (pulsePositionLeft + totalSteps));
+        }
+
+        // Head of pulse
+        if (distLeft > (-1.0 * pulseHeadSize)) {
+            color = color * 1.0;  
+        }
+        // Trail after head of pulse
+        else {
+            color = color * exp((distLeft+pulseHeadSize) * decayFactor);
+        }
     }
 
-    // head of pulse
-    if (distLeft > (-1.0 * pulseHeadSize)) {
-        color = color * 1.0;  
-    }
-    // trail after head of pulse
-    else {
-        color = color * exp((distLeft+pulseHeadSize) * decayFactor);
-    }
-
+       
     // Set output
     fragColor = vec4(color.x, color.y, color.z, 1.0);
 }

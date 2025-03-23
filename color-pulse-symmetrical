@@ -23,7 +23,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
     float brightnessGreen = 1.0;
     float brightnessBlue = 0.0;
     const float numLEDs = 12.0; // Change this value to the number of LEDs in the display
-    const float speed = 1.0; // speed setting: higher speed = faster movement
+    const float speed = 1.5; // speed setting: higher speed = faster movement
     const float pulseHeadSize = 1.0; // width in elements of initial pulse, should be non-negative;
     
     
@@ -37,18 +37,15 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
     time = iTime;
     
     screenCenter = numLEDs / 2.0;
-    decayFactor = 0.1;
+    decayFactor = 0.5;
     time = time * speed;
-    pulseDuration = 3.0;    
-    pauseDuration = 2.0;
+    pulseDuration = 1.0;    
+    pauseDuration = 8.0;
     totalCycleTime = pulseDuration + pauseDuration;
     cyclePosition = mod(time, totalCycleTime) / pulseDuration;
     totalSteps = numLEDs * (totalCycleTime / pulseDuration);
     pulsePositionLeft = cyclePosition * numLEDs;
-    pulsePositionRight = pulsePositionLeft * -1.0;
-    pulsePositionRight = pulsePositionRight - (((numLEDs+4.0)/2.0));
-    // Make sure to start RHS pulse at the end, not the middle
-    pulsePositionRight = pulsePositionRight + totalSteps;
+    pulsePositionRight = numLEDs - pulsePositionLeft;
     color.x = brightnessRed;
     color.y = brightnessGreen;
     color.z = brightnessBlue;

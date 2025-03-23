@@ -17,7 +17,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
     float colorTrailingRed; // color following decay - values range from 0.0 to 1.0
     bool combineBackgroundWithTrailing; // add the chosen background color to the trailing color if this is enabled
     float cyclePosition; // current progress through totalCycle
-    float decayFactor;  // speed that brightness drops off with time / distance from pulse head. higher = quicker dropoff / darker.
+    float decaySpeed;  // speed that brightness drops off with time / distance from pulse head. higher = quicker dropoff, darker sooner.
     float distLeft; // distance per LED from head of pulse on LHS / start
     bool horizontal; // move horizontally. if false will move vertically instead.
     float ledIndex;  // position of individual LED
@@ -39,6 +39,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
     vec3 vectorColorTrailing; // combnied color vector for space after the decay trail
     
     // Configuration section
+    // See above for details
     colorBackgroundBlue = 0.0;
     colorBackgroundGreen = 0.0;
     colorBackgroundRed = 0.0;
@@ -51,7 +52,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
     colorTrailingGreen = 0.0;
     colorTrailingRed = 0.0;
     combineBackgroundWithTrailing = true;
-    decayFactor = 0.5;
+    decaySpeed = 0.5;
     horizontal = false;
     numLEDs = 6.0;
     pauseDuration = 4.0;
@@ -112,7 +113,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
         }
         else {
             // Trail following head of pulse - reversed direction
-            vectorColorPulse = max(vectorColorPulse * exp(((distLeft * -1.0) + pulseHeadSize) * decayFactor), vectorColorPulse*pulseMinimumBrightness);
+            vectorColorPulse = max(vectorColorPulse * exp(((distLeft * -1.0) + pulseHeadSize) * decaySpeed), vectorColorPulse*pulseMinimumBrightness);
         }
     }
     // default motion direction
@@ -131,7 +132,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
         }
         // Trail after head of pulse - normal direction
         else {
-            vectorColorPulse = max(vectorColorPulse * exp((distLeft+pulseHeadSize) * decayFactor), vectorColorPulse*pulseMinimumBrightness);
+            vectorColorPulse = max(vectorColorPulse * exp((distLeft+pulseHeadSize) * decaySpeed), vectorColorPulse*pulseMinimumBrightness);
         }
     }
     

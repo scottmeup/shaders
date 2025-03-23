@@ -1,4 +1,4 @@
-// configurable unidirectional color pulse with decay trail
+// configurable unidirectional color pulse
 
 void mainImage(out vec4 fragColor, in vec2 fragCoord)
 {
@@ -15,6 +15,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
     bool colorTrailingCutoffIncludesBackground; // check background + pulse intensity. only checks pulse brightness if false.
     float colorTrailingGreen; // color following decay - values range from 0.0 to 1.0
     float colorTrailingRed; // color following decay - values range from 0.0 to 1.0
+    bool combineBackgroundWithTrailing; // add the chosen background color to the trailing color if this is enabled
     float cyclePosition; // current progress through totalCycle
     float decayFactor;  // speed that brightness drops off with time / distance from pulse head. higher = quicker dropoff / darker.
     float distLeft; // distance per LED from head of pulse on LHS / start
@@ -36,7 +37,6 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
     vec3 vectorColorOutput; // combined background + pulse color vector
     vec3 vectorColorPulse; // combined color vector for the moving pulse
     vec3 vectorColorTrailing; // combnied color vector for space after the decay trail
-
     
     // Configuration section
     colorBackgroundBlue = 0.0;
@@ -47,9 +47,10 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
     colorPulseRed = 0.0;
     colorTrailingBlue = 0.125;
     colorTrailingCutoff = 0.125;
-    colorTrailingCutoffIncludesBackground = true;
+    colorTrailingCutoffIncludesBackground = false;
     colorTrailingGreen = 0.0;
     colorTrailingRed = 0.0;
+    combineBackgroundWithTrailing = true;
     decayFactor = 0.5;
     horizontal = false;
     numLEDs = 6.0;
@@ -94,10 +95,11 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
     vectorColorTrailing.x = colorTrailingRed;
     vectorColorTrailing.y = colorTrailingGreen;
     vectorColorTrailing.z = colorTrailingBlue;
- 
-        
+
+    // reversed motion direction
     if(reverse){
         distLeft = ledIndex - (pulsePositionLeft);
+        // account for head of pulse wrapping around
         if (distLeft <0.0){
             distLeft = distLeft + totalCycleSteps;
         }
@@ -109,14 +111,16 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
 
         }
         else {
-            // Trail after head of pulse - reversed direction
+            // Trail following head of pulse - reversed direction
             vectorColorPulse = max(vectorColorPulse * exp(((distLeft * -1.0) + pulseHeadSize) * decayFactor), vectorColorPulse*pulseMinimumBrightness);
         }
     }
+    // default motion direction
     else{
         if (pulsePositionLeft >= ledIndex){
             distLeft = (ledIndex - pulsePositionLeft);
         }
+        // account for head of pulse wrapping around
         else {
             distLeft = (ledIndex - (pulsePositionLeft + totalCycleSteps));
         }
@@ -148,6 +152,9 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
     
     if (brightnessIntensity < colorTrailingCutoff){
         vectorColorPulse = vectorColorTrailing;
+        if (combineBackgroundWithTrailing){
+            vectorColorPulse = vectorColorPulse + vectorColorBackground;
+        }
     }
     
     // Set output

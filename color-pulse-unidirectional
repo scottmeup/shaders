@@ -37,6 +37,19 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
     vec3 vectorColorOutput; // combined background + pulse color vector
     vec3 vectorColorPulse; // combined color vector for the moving pulse
     vec3 vectorColorTrailing; // combnied color vector for space after the decay trail
+
+    // colorPulse defines the head of the moving pulse
+    // colorTrailing is a color applied after the brightness decays to a specified cutoff level
+    // colorBackground is a base color applied to the pulse and optionally to the trailing section following the pulse cutoff
+    // combineBackgroundWithTrailing optionally adds the background color to the section trailing the cutoff
+    // reverse, horizontal affect direction of movement
+    // pulseTime affects the time for the bright region to move across the display
+    // pauseTime adds a delay between the end of one pulse and the beginning of the next
+    // pulseMinimumBrightness sets a level of brightness not to decay below
+    // decaySpeed affects the rate that brightness drops off. higher decaySpeed = shorter pulse appearance.
+    // speed is a global speed modifier
+    // pulseHeadSize adds a region where there is no decay in brightness at the start of the pulse. Each unit will be the width of 1 addressable position if numLEDs is set correctly
+
     
     // Configuration section
     // See above for details

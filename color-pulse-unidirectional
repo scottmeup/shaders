@@ -16,28 +16,41 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
     float colorTrailingGreen; // color following decay - values range from 0.0 to 1.0
     float colorTrailingRed; // color following decay - values range from 0.0 to 1.0
     bool combineBackgroundWithTrailing; // add the chosen background color to the trailing color if this is enabled
-    float cyclePosition; // current progress through totalCycle
     float decaySpeedBase;  // linear factor affecting speed that brightness drops off with time / distance from pulse head. higher = quicker dropoff, darker sooner.
     float decaySpeedExponent;  // exponential factor affecting speed that brightness drops off with time / distance from pulse head. higher = quicker dropoff, darker sooner.
-    float distLeft; // distance per LED from head of pulse on LHS / start
+    float distanceLED; // distance of the head of the pulse from the current LED element, measured in LEDs
+    float distancePercent; // distance of the head of the pulse from the current pixel, measured in percent. values range from 0.0 to 1.0
+    float distancePixel; // distance  of the head of the pulse from the current pixel, measured in pixels.
     bool horizontal; // move horizontally. if false will move vertically instead.
-    float ledIndex;  // position of individual LED
-    float numLEDs; // Change this value to the number of LEDs in the display
+    float indexLED;  // position of individual LED from 0 to N. N is set by numLEDs.
+    float indexPixel; // position of individual display element from 0 to N where N is the number of pixels in the relevant dimension.
+    float indexPercent; // position in display area as a percent. values range from 0.0 to 1.0
+    float numLEDs; // Number of LEDs in the display from one end to the other - must be set by user
+    float numPixels; // Size of display in pixels in the direction of movement
+    bool outputSteppedDisplay; // Breaks the output up by the number of LEDs specified in numLEDs if true. Uses the resolution of the display area if false.
     float pauseDuration; // time to wait between end of one pulse and start of the next
     float pulseDuration; // time taken for pulse to move from beginning to end of display
-    float pulseHeadSize; // width in individual LED elements for the initial no-decayed pulse
-    float pulsePositionLeft; // progress of pulse head from LHS / start
+    float pulseHeadSizeLED; // width in individual LED elements for the initial no-decayed pulse
+    float pulseHeadSizePercent; // width of the pulse head's no-decay zone as a percentage of the display area
+    float pulseHeadSizePixel; // width in pixels for the initial no-decayed pulse
+    float pulsePositionLED; // current progress of pulse through totalCycle. Measured in LED elements, based on pulsePositionPercent & numLEDs.
+    float pulsePositionPercent; // current progress of pulse through totalCycle:Measured as a percentage. Value is between 0.0 and 1.0
+    float pulsePositionPixel; // current progress of pulse through totalCycle. Measured in pixels.
     float pulseMinimumBrightness; // stop decaying pulse brightness below this level
     vec2 resolution; // resolution of display device, provided by the software
     bool reverse; // flip direction of movement. defaults to Left->Right, Top->Bottom
     float speed; // speed setting: higher speed = faster movement
     float time; // clock, used to calculate cycle progress
-    float totalCycleSteps; // total "width" of a cycle based on equally timed display state changes
+    float totalCycleStepsLED; // size of a cycle from one beginning to the next. calculated as total time divided by time per LED transition.
+    float totalCycleStepsPixel; // size of a cycle from one beginning to the next. calculated as total time divided by time per pixel transition.
+    float totalCycleStepsPercent; // size of an entire cycle in percent, based on the actual display area being 100%.
     float totalCycleTime; // time between one pulse beginning and the next one starting
     vec3 vectorColorBackground; //  combined color vector for the background
     vec3 vectorColorOutput; // combined background + pulse color vector
     vec3 vectorColorPulse; // combined color vector for the moving pulse
-    vec3 vectorColorTrailing; // combnied color vector for space after the decay trail
+    vec3 vectorColorTrailing; // combined color vector for space after the decay trail
+    float widthLEDInPixels; // ratio of LED elements to pixels
+    float widthLEDInPercent; // ratio of LED elements to % of total cycle width
 
     // colorPulse defines the head of the moving pulse
     // colorTrailing is a color applied after the brightness decays to a specified cutoff level
@@ -49,7 +62,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
     // pulseMinimumBrightness sets a level of brightness not to decay below
     // decaySpeedBase and decaySpeedExponent affect the rate that brightness drops off. higher decaySpeed = shorter pulse appearance. decaySpeedBase is a linear factor, decaySpeedExponent is exponential.
     // speed is a global speed modifier
-    // pulseHeadSize adds a region where there is no decay in brightness at the start of the pulse. Each unit will be the width of 1 addressable position if numLEDs is set correctly
+    // pulseHeadSizeLED adds a region where there is no decay in brightness at the start of the pulse. Each unit will be the width of 1 addressable position if numLEDs is set correctly
 
     
     // Configuration section
@@ -60,33 +73,44 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
     colorPulseBlue = 0.0;
     colorPulseGreen = 1.0;
     colorPulseRed = 0.0;
-    colorTrailingBlue = 0.125;
+    colorTrailingBlue = 0.0;
     colorTrailingCutoff = 0.0;
     colorTrailingCutoffIncludesBackground = false;
     colorTrailingGreen = 0.0;
     colorTrailingRed = 0.0;
     combineBackgroundWithTrailing = true;
-    decaySpeedBase = 0.25;
+    decaySpeedBase = 1.0;
     decaySpeedExponent = 1.0;
-    horizontal = false;
+    horizontal = true;
     numLEDs = 6.0;
-    pauseDuration = 4.0;
+    outputSteppedDisplay = false;
+    pauseDuration = 3.0;
     pulseMinimumBrightness = 0.0;
     pulseDuration = 2.0;    
-    pulseHeadSize = 1.0;
+    pulseHeadSizeLED = 1.0;
     reverse = false;
-    speed = 1.0;
+    speed = 300.0;
+
 
     // Get the resolution from Shadertoy
     resolution = iResolution.xy;
     
-    // Adjust the display to suit the number of LEDs
+    
+    // Adjust the display parameters to suit the direction & number of LEDs & pixels
     if (horizontal){
-        ledIndex = fragCoord.x / resolution.x * numLEDs;
+        indexPixel = fragCoord.x;
+        numPixels = resolution.x;
     }
     else{
-        ledIndex = fragCoord.y / resolution.y * numLEDs;
+        indexPixel = fragCoord.y;
+        numPixels = resolution.y;      
     }
+    indexPercent = indexPixel / numPixels;
+    widthLEDInPixels = numPixels / numLEDs;
+    widthLEDInPercent = 1.0 / numLEDs;
+/*
+    indexLED = floor(indexPixel * numLEDs);
+*/
     
     // Get the current time from shadertoy
     if(reverse){
@@ -95,13 +119,22 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
     else{
         time = iTime * speed;
     }
-    
+     
     
     vec3 ones3d = vec3(1.0, 1.0, 1.0);
     totalCycleTime = pulseDuration + pauseDuration;
-    cyclePosition = mod(time, totalCycleTime) / pulseDuration;
-    totalCycleSteps = numLEDs * (totalCycleTime / pulseDuration);
-    pulsePositionLeft = cyclePosition * numLEDs;
+    totalCycleStepsPercent = (totalCycleTime/pulseDuration);
+    totalCycleStepsPixel = numPixels * totalCycleStepsPercent;
+    pulsePositionPixel = mod(time, totalCycleStepsPixel);
+    pulsePositionPercent = pulsePositionPixel / totalCycleStepsPixel;
+    pulsePositionLED = floor(pulsePositionPercent * numLEDs);
+
+    totalCycleStepsLED = numLEDs * (totalCycleTime / pulseDuration);
+    pulseHeadSizePercent = pulseHeadSizeLED * widthLEDInPercent;
+    pulseHeadSizePixel = pulseHeadSizeLED * widthLEDInPixels;
+    distancePercent = mod((pulsePositionPixel - indexPixel), totalCycleStepsPixel) / totalCycleStepsPixel;
+    distancePixel = mod((pulsePositionPixel - indexPixel), totalCycleStepsPixel);
+    
     vectorColorBackground.x = colorBackgroundRed;
     vectorColorBackground.y = colorBackgroundGreen;
     vectorColorBackground.z = colorBackgroundBlue;
@@ -112,45 +145,75 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
     vectorColorTrailing.y = colorTrailingGreen;
     vectorColorTrailing.z = colorTrailingBlue;
 
-    // reversed motion direction
+
+
+/*
+    // Set display output mode: pixel or LED
+    float index;
+    if (outputSteppedDisplay){
+        index = indexLED;
+    }
+    else{
+        index = indexPixel;;
+    }
+*/
+
+    // generate output for reversed motion direction
     if(reverse){
-        distLeft = ledIndex - (pulsePositionLeft);
+        distancePixel = (indexPixel - pulsePositionPixel);
         // account for head of pulse wrapping around
-        if (distLeft <0.0){
-            distLeft = distLeft + totalCycleSteps;
+        if (distancePixel < 0.0){
+            distancePixel = distancePixel + totalCycleStepsPixel;
         }
+
         // Head of pulse
-        if (distLeft <= pulseHeadSize) {
-            if (distLeft >= 0.0){
+        if (distancePixel <= pulseHeadSizePixel) {
+            if (distancePixel >= 0.0){
                 vectorColorPulse = vec3(colorPulseRed, colorPulseGreen, colorPulseBlue);
             }
 
         }
         else {
             // Trail following head of pulse - reversed direction
-            vectorColorPulse = vectorColorPulse * max(exp(((distLeft * -1.0) + pulseHeadSize) * decaySpeedExponent), pulseMinimumBrightness);
+            vectorColorPulse = vectorColorPulse * max(exp(((distancePixel * -1.0) + pulseHeadSizePixel) * decaySpeedBase), pulseMinimumBrightness);
         }
     }
-    // default motion direction
+    // generate output for default motion direction
     else{
-        if (pulsePositionLeft >= ledIndex){
-            distLeft = (ledIndex - pulsePositionLeft);
-        }
-        // account for head of pulse wrapping around
-        else {
-            distLeft = (ledIndex - (pulsePositionLeft + totalCycleSteps));
+/*
+        if (pulsePositionPixel > indexPixel){
+            distancePixel = (pulsePositionPixel - indexPixel);
+            vectorColorBackground = vec3(1.0, 0.0, 0.0);
+            // # RED #
         }
 
-        // Head of pulse
-        if (distLeft > (-1.0 * pulseHeadSize)) {
-            vectorColorPulse = vectorColorPulse = vec3(colorPulseRed, colorPulseGreen, colorPulseBlue);  
+        // account for head of pulse wrapping around
+        else {
+            distancePixel = (pulsePositionPixel - indexPixel + totalCycleStepsPixel);
+            vectorColorBackground = vec3(0.0, 0.0, 1.0);
+            // # BLUE #
         }
-        // Trail after head of pulse - normal direction
+*/
+
+        // Head of pulse. Set to the originally specified pulse color.
+        if (distancePercent < (pulseHeadSizePercent)) {
+            //vectorColorPulse = vectorColorPulse + vec3(0.0, 0.5, 0.0);
+            vectorColorPulse = vec3(colorPulseRed, colorPulseGreen, colorPulseBlue);
+        }
+
+        // Decay after head of pulse - normal direction
         else {
             // to-do: check the calcluations on this line
-            vectorColorPulse = vectorColorPulse * max(exp(((distLeft)+pulseHeadSize) * decaySpeedBase), pulseMinimumBrightness);
+            //vectorColorPulse = vectorColorPulse * max(exp(((distancePixel)+pulseHeadSizePixel) * decaySpeedBase), pulseMinimumBrightness);
+            //float decay = ((distancePixel) * decaySpeedBase)/5000.0;
+            //vectorColorPulse = vectorColorPulse - vec3(decay, decay, decay);
+            vectorColorPulse = vectorColorPulse - ((distancePercent-pulseHeadSizePercent) * decaySpeedBase * vec3(0.0, 1.0, 0.0));
+            //vectorColorPulse = vec3(1.0, 0.0, 1.0);
+            //vectorColorBackground = vec3(1.0, 0.0, 1.0);
+            // # WHITE #
         }
     }
+    
     
     // calculate brightness intensity using the dot product of the color vectors and an all-ones vector
     // combine background & pulse vector intensities if that option is selected
@@ -160,7 +223,6 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
         vectorColorCombinedIntensity.y = min(1.0, vectorColorCombinedIntensity.y);
         vectorColorCombinedIntensity.z = min(1.0, vectorColorCombinedIntensity.z);
         brightnessIntensity = dot(vectorColorCombinedIntensity, ones3d);
-        
     }
     else{
        brightnessIntensity = dot(vectorColorPulse, ones3d);
@@ -172,6 +234,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
             vectorColorPulse = vectorColorPulse + vectorColorBackground;
         }
     }
+    
     
     // Set output
     vectorColorOutput = vectorColorPulse + vectorColorBackground;

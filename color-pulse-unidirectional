@@ -82,8 +82,8 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
     colorTrailingGreen = 0.0;
     colorTrailingRed = 0.0;
     combineBackgroundWithTrailing = true;
-    decaySpeedBase = 1.0;
-    decaySpeedExponent = 6.0;
+    decaySpeedBase = 1.0;  // 0.0 for no linear decay
+    decaySpeedExponent = 1.0; // 0.0 for no exponential decay
     horizontal = true;
     numLEDs = 6.0;
     outputSteppedDisplay = false;
@@ -108,11 +108,19 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
         indexPixel = fragCoord.y;
         numPixels = resolution.y;      
     }
+    
     indexPercent = indexPixel / numPixels;
+
+    widthLEDInPixels = numPixels / numLEDs; // 1 dimensional display resolution divided by number of LED elements
+    widthLEDInPercent = 1.0 / numLEDs;
+
+    pulseHeadSizePercent = pulseHeadSizeLED / numLEDs;
+    pulseHeadSizePixel = pulseHeadSizeLED * widthLEDInPixels;
+        
 
     // adjust the cycle to run in realtime when speed = 1.0 and use speed as a multiplier
     // to do: confirm pulse head is counted properly in timing
-    speed = speed * (numPixels / pulseDuration);
+    speed = speed * ((numPixels + pulseHeadSizePixel) / pulseDuration);
 /*
     indexLED = floor(indexPixel * numLEDs);
 */
@@ -131,9 +139,6 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
     totalCycleTime = pulseDuration + pauseDuration;
     ratioCycleToPulse = totalCycleTime / pulseDuration;
     
-    widthLEDInPixels = numPixels / numLEDs; // 1 dimensional display resolution divided by number of LED elements
-    widthLEDInPercent = 1.0 / numLEDs;
-    
     totalCycleStepsPercent = ratioCycleToPulse + (pulseHeadSizeLED * widthLEDInPercent);
     totalCycleStepsPixel = (numPixels * totalCycleStepsPercent);
     totalCycleStepsLED = (numLEDs * ratioCycleToPulse) + pulseHeadSizeLED;
@@ -142,8 +147,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
     pulsePositionPercent = pulsePositionPixel / totalCycleStepsPixel;
     pulsePositionLED = floor(pulsePositionPercent * numLEDs);
 
-    pulseHeadSizePercent = pulseHeadSizeLED * widthLEDInPercent;
-    pulseHeadSizePixel = pulseHeadSizeLED * widthLEDInPixels;
+
     
     // keep track of distance pulse head is from each pixel, account for looping
     distancePixelTotalCycle = mod((pulsePositionPixel - indexPixel), totalCycleStepsPixel);
@@ -213,25 +217,38 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
         }
 */
 
+        // to do: check if the code in this block is required? it seems to be handled already by the 
+        // else block.
         // Head of pulse. Set to the originally specified pulse color.
         if (distancePercentDisplayLength < (pulseHeadSizePercent)) {
         //if (distancePercentDisplayLength < (1.0/6.0)) {
 
             //vectorColorPulse = vectorColorPulse + vec3(0.0, 0.5, 0.0);
-            //vectorColorPulse = vectorColorPulse + vec3(1.0, 1.0, 1.0);
-            vectorColorPulse = vec3(colorPulseRed, colorPulseGreen, colorPulseBlue);
+            vectorColorPulse = vec3(1.0, 1.0, 1.0);
+            //vectorColorPulse = vec3(colorPulseRed, colorPulseGreen, colorPulseBlue);
         }
 
         // Decay after head of pulse - normal direction
         else {
-            float decay;
+            float decayLinear;
+            float decayExponential;
+            float distanceFromEndOfHeadPercent;
             // to-do: check the calcluations on this line
-            //vectorColorPulse = vectorColorPulse * max(exp(((distancePixelTotalCycle)+pulseHeadSizePixel) * decaySpeedBase), pulseMinimumBrightness);
-            //float decay = ((distancePixelTotalCycle-pulseHeadSizePercent) * decaySpeedBase);
+            // to-do: find out why turning decay-base off fills only part of the screen with full color
+            // and turning decay-exponent off fills the whole screen with full color
+
+            
+            distanceFromEndOfHeadPercent = mod( ( distancePercentDisplayLength - pulseHeadSizePercent ), ratioCycleToPulse);
             //decay = min(((1.0 - distancePercentDisplayLength)+pulseHeadSizePercent), 1.0) / decaySpeedBase;
-            //vectorColorPulse = vectorColorPulse * decay;
-            decay = exp((pulseHeadSizePercent - distancePercentDisplayLength) * decaySpeedExponent);
-            vectorColorPulse = vectorColorPulse * decay;
+            decayLinear =  ((distanceFromEndOfHeadPercent * decaySpeedBase) / (ratioCycleToPulse) );
+            decayExponential = exp(distanceFromEndOfHeadPercent / ( -2.0 ) );
+            
+            //vectorColorPulse = vectorColorPulse / decayExponential;
+            //vectorColorPulse = vectorColorPulse / decayLinear;
+            
+            //vectorColorPulse = vec3(decayLinear, decayLinear, decayLinear);
+            vectorColorPulse = vec3(decayExponential, decayExponential, decayExponential);
+
             
             //vectorColorPulse = vectorColorPulse * max(exp(((distancePercentDisplayLength)+pulseHeadSizePixel) * decaySpeedExponent), pulseMinimumBrightness);
             //vectorColorPulse = vectorColorPulse - vec3(decay, decay, decay);

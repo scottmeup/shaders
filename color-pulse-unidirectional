@@ -16,10 +16,10 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     bool color_pause_cutoff_includes_uniform_level = false;    
     float color_pulse_minimum_brightness = 0.0;
     bool color_combine_background_with_pause = true;
-    float decay_speed_linear = 0.33;    // 0.0 for no linear decay 
+    float decay_speed_linear = 1.0;    // 0.0 for no linear decay 
     float decay_speed_exponential = 0.0;    // 0.0 for no exponential decay
     bool direction_movement_horizontal = true;
-    bool direction_movement_reversed = true;
+    bool direction_movement_reversed = false;
     bool display_discrete_led_output = false;
     float duration_of_pause = 1.0;   //  Time between the front of the pulse leaving the screen and the next pulse appearing 
     float duration_of_pulse = 3.0;    // Time taken for the front of the pulse to run across the display
@@ -52,72 +52,50 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     float duration_of_cycle = duration_of_pause + duration_of_pulse;
     float width_of_total_cycle_as_percent_of_display = duration_of_cycle / duration_of_pulse;
     float speed_of_movement_per_second_as_percent_of_display = 1.0 / duration_of_pulse;
-
     float width_of_led_as_percent_of_display = 1.0 / width_of_display_in_leds;
     float width_of_pulse_head_as_percent_of_display = width_of_led_as_percent_of_display * width_pulse_head_in_leds;
     float ratio_of_display_width_to_pulse_tail_width = 1.0 / (1.0 - width_of_pulse_head_as_percent_of_display);
+    
     
     // Move beginning of pulse across the screen and calculate distance from each screen location
     float speed_reverse_modifier = 1.0;
     if(direction_movement_reversed){
         speed_reverse_modifier = -1.0;
     }
-    // just a hunch, lets try removing mod and see what happens to reverse direction decay: no change
-    //float time = mod(iTime*speed_global_modifier*speed_reverse_modifier, duration_of_cycle);
-    float time = iTime*speed_global_modifier*speed_reverse_modifier; 
+    
+    
+    // either or of the time setting works with the code, but at least the one with mod won't get insanely large
+    float time = mod(iTime*speed_global_modifier*speed_reverse_modifier, duration_of_cycle);
     float position_of_pulse_as_percent_of_display = speed_of_movement_per_second_as_percent_of_display * time;
-    //working in normal direction with this line
 
-
-
-
-
-    // display the pulse
+    
+    // Set up distance from end of pulse head based on normal or reverse direction of movement
     vec3 display_output_vector;
-    // reversed direction output
+    float distance_of_current_location_from_pulse_as_percent;
     if(direction_movement_reversed){
-        float distance_of_current_location_from_pulse_as_percent = mod((position_of_current_location_as_percent_of_display - position_of_pulse_as_percent_of_display), width_of_total_cycle_as_percent_of_display); // expect this to reach values over 100% if pause time is greater than 0
-        if ((distance_of_current_location_from_pulse_as_percent) < width_of_pulse_head_as_percent_of_display){
-            // Pulse Head
-            display_output_vector = rgb_pulse;
-            //display_output_vector = vec3(1.0, 1.0, 1.0);
-        }
-        else{
-            // Pulse Tail
-            // Squish the decay rate into the non-head area of the pulse
-            float distance_from_pulse_head_percent = (distance_of_current_location_from_pulse_as_percent - width_of_pulse_head_as_percent_of_display);
-            float distance_from_pulse_head_percent_normalised = ( distance_from_pulse_head_percent / ratio_of_display_width_to_pulse_tail_width );
-            float decay_linear = 1.0 - (distance_from_pulse_head_percent_normalised * decay_speed_linear);        
-            float decay_exponential = exp(-distance_from_pulse_head_percent_normalised * decay_speed_exponential);
-            float decay_total = decay_linear * decay_exponential;
-            //display_output_vector = (rgb_pulse * decay_total);
-            display_output_vector = (rgb_pulse * decay_linear);
-        }
+        distance_of_current_location_from_pulse_as_percent = mod((position_of_current_location_as_percent_of_display - position_of_pulse_as_percent_of_display), width_of_total_cycle_as_percent_of_display); // expect this to reach values over 100% if pause time is greater than 0
     }
-    
-    
-    
-    // standard direction output
     else{
-        float distance_of_current_location_from_pulse_as_percent = mod((position_of_pulse_as_percent_of_display - position_of_current_location_as_percent_of_display), width_of_total_cycle_as_percent_of_display); // expect this to reach values over 100% if pause time is greater than 0
-        if (distance_of_current_location_from_pulse_as_percent < width_of_pulse_head_as_percent_of_display){
-            // Pulse Head
-            display_output_vector = rgb_pulse;
-            //display_output_vector = vec3(1.0, 1.0, 1.0);
-        }
-        else{
-            // Pulse Tail
-            // Squish the decay rate into the non-head area of the pulse
-            float distance_from_pulse_head_percent = (distance_of_current_location_from_pulse_as_percent - width_of_pulse_head_as_percent_of_display);
-            float distance_from_pulse_head_percent_normalised = ( distance_from_pulse_head_percent / ratio_of_display_width_to_pulse_tail_width );
-            float decay_linear = 1.0 - (distance_from_pulse_head_percent_normalised * decay_speed_linear);        
-            float decay_exponential = exp(-distance_from_pulse_head_percent_normalised * decay_speed_exponential);
-            float decay_total = decay_linear * decay_exponential;
-            display_output_vector = (rgb_pulse * decay_total);
-
-        }
-
+        distance_of_current_location_from_pulse_as_percent = mod((position_of_pulse_as_percent_of_display - position_of_current_location_as_percent_of_display), width_of_total_cycle_as_percent_of_display); // expect this to reach values over 100% if pause time is greater than 0    
     }
+    
+    
+    // Draw the pulse
+    if ((distance_of_current_location_from_pulse_as_percent) < width_of_pulse_head_as_percent_of_display){
+        // Pulse Head
+        display_output_vector = rgb_pulse;
+        }
+    else{
+        // Pulse Tail
+        // Squish the decay rate into the non-head area of the pulse
+        float distance_from_pulse_head_percent = (distance_of_current_location_from_pulse_as_percent - width_of_pulse_head_as_percent_of_display);
+        float distance_from_pulse_head_percent_normalised = ( distance_from_pulse_head_percent / ratio_of_display_width_to_pulse_tail_width );
+        float decay_linear = 1.0 - (distance_from_pulse_head_percent_normalised * decay_speed_linear);        
+        float decay_exponential = exp(-distance_from_pulse_head_percent_normalised * decay_speed_exponential);
+        float decay_total = decay_linear * decay_exponential;
+        display_output_vector = (rgb_pulse * decay_total);
+    }
+
     
     // debug line to test viewport coordinates
     //display_output_vector = map_viewport_coords(fragCoord);

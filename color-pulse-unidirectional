@@ -12,15 +12,15 @@ vec3 map_viewport_coords (in vec2 frag_coord){
 
 void mainImage( out vec4 fragColor, in vec2 fragCoord )
 {
-    float color_pause_cutoff = 0.0;
-    bool color_pause_cutoff_includes_uniform_level = false;    
-    float color_pulse_minimum_brightness = 0.0;
-    bool color_combine_background_with_pause = true;
-    float decay_speed_linear = 1.0;    // 0.0 for no linear decay 
-    float decay_speed_exponential = 0.0;    // 0.0 for no exponential decay
-    bool direction_movement_horizontal = true;
+    float color_pause_cutoff = 0.1;
+    bool color_pause_cutoff_includes_background_intensity = false;    
+    float color_pulse_minimum_brightness_percent = 0.05;    // Minimum brightness of pulse as a percent.
+    bool color_combine_background_with_pause_color = false;
+    float decay_speed_linear = 0.0;    // 0.0 for no linear decay 
+    float decay_speed_exponential = 3.0;    // 0.0 for no exponential decay
+    bool direction_movement_horizontal = false;
     bool direction_movement_reversed = false;
-    bool display_discrete_led_output = false;
+    bool display_discrete_led_output = false; // To-do
     float duration_of_pause = 1.0;   //  Time between the front of the pulse leaving the screen and the next pulse appearing 
     float duration_of_pulse = 3.0;    // Time taken for the front of the pulse to run across the display
     vec3 rgb_background = vec3(0.0, 0.0, 1.0);    // (R, G, B) Color applied uniformly on top of others
@@ -94,6 +94,28 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         float decay_exponential = exp(-distance_from_pulse_head_percent_normalised * decay_speed_exponential);
         float decay_total = decay_linear * decay_exponential;
         display_output_vector = (rgb_pulse * decay_total);
+    }
+    
+    
+    // enforce minimum brightness setting for pulse - do not decay below this intensity
+    vec3 ones3d = vec3(1.0, 1.0, 1.0);
+    float color_brightness_of_display_output_vector_mean_percent = dot(ones3d, display_output_vector)/3.0;
+    
+    
+    if( color_brightness_of_display_output_vector_mean_percent < color_pulse_minimum_brightness_percent){
+        //float inverse_dot_product_mean = ( 1.0 / color_pulse_minimum_brightness_percent );
+        float rgb_pulse_sum = rgb_pulse.x + rgb_pulse.y + rgb_pulse.z;
+        vec3 rgb_ratio = vec3((rgb_pulse.x / rgb_pulse_sum), (rgb_pulse.y / rgb_pulse_sum), (rgb_pulse.z / rgb_pulse_sum));
+        display_output_vector = (rgb_ratio * color_pulse_minimum_brightness_percent * 3.0);
+    }
+
+
+    // Add the uniform background color
+    if(color_combine_background_with_pause_color){
+        display_output_vector = display_output_vector + rgb_background;
+    }
+    else{
+        
     }
 
     

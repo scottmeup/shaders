@@ -81,18 +81,27 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         display_output_vector = rgb_pulse;
         //display_output_vector = vec3(distance_of_current_location_from_pulse_as_percent, 0.0, 0.0);
     }
-    else if(distance_of_current_location_from_pulse_as_percent < (1.0)) {
+    else{
         // Pulse Tail
         // Squish the decay rate into the non-head area of the pulse
-        float decay = 1.0 - ( (distance_of_current_location_from_pulse_as_percent - width_of_pulse_head_as_percent_of_display) / (ratio_of_display_width_to_pulse_tail_width / decay_speed_linear ) );
-        display_output_vector = (rgb_pulse * decay);
+        float distance_from_pulse_head;
+        float decay_linear = 1.0 - ( (distance_of_current_location_from_pulse_as_percent - width_of_pulse_head_as_percent_of_display) / (ratio_of_display_width_to_pulse_tail_width / decay_speed_linear ) );
+        float decay_exponential = exp(1.0 - distance_of_current_location_from_pulse_as_percent);
+        display_output_vector = (rgb_pulse * decay_linear);
+        //display_output_vector = (rgb_pulse * decay_exponential);
+        
+        
+        // debug code
         //display_output_vector = vec3(0.0, ( (distance_of_current_location_from_pulse_as_percent + width_of_pulse_head_as_percent_of_display) / ratio_of_display_width_to_pulse_tail_width) , 0.0);
+
     }
+    /*
     else{
         // Background / pause
         //display_output_vector = rgb_pause;
         //display_output_vector = vec3(0.0, 0.0, 0.0);
         display_output_vector = vec3(0.0, 0.0, distance_of_current_location_from_pulse_as_percent);
     }
+    */
     fragColor = vec4(display_output_vector.x, display_output_vector.y, display_output_vector.z, 1.0);
 }

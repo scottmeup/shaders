@@ -1,20 +1,10 @@
-vec3 map_viewport_coords (in vec2 frag_coord){
-    // some test code to establish values.
-    // black = 0%, white = 100%
-    
-    vec3 display_output_vector;
-    float location_percent_x = frag_coord.x / iResolution.x;
-    float location_percent_y = frag_coord.y / iResolution.y;
-    float pixel_brightness_intensity = ( (location_percent_x/2.0) + (location_percent_y/2.0) );
-    vec3 intensity_map = vec3(pixel_brightness_intensity, pixel_brightness_intensity, pixel_brightness_intensity);
-    return intensity_map;
-}
+// configurable unidirectional color pulse
 
 void mainImage( out vec4 fragColor, in vec2 fragCoord )
 {
-    float color_pause_cutoff = 0.1;
-    bool color_pause_cutoff_includes_background_intensity = false;    
-    float color_pulse_minimum_brightness_percent = 0.05;    // Minimum brightness of pulse as a percent.
+    float color_brightness_cutoff = 0.05;    // switch to non-pulse, "pause" section of cycle coloring below this brightness
+    bool color_brightness_cutoff_includes_background_brightness = false;    
+    float color_pulse_minimum_brightness_percent = 0.00;    // Minimum brightness of pulse as a percent.
     bool color_combine_background_with_pause_color = false;
     float decay_speed_linear = 0.0;    // 0.0 for no linear decay 
     float decay_speed_exponential = 3.0;    // 0.0 for no exponential decay
@@ -24,7 +14,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     float duration_of_pause = 1.0;   //  Time between the front of the pulse leaving the screen and the next pulse appearing 
     float duration_of_pulse = 3.0;    // Time taken for the front of the pulse to run across the display
     vec3 rgb_background = vec3(0.0, 0.0, 1.0);    // (R, G, B) Color applied uniformly on top of others
-    vec3 rgb_pause = vec3(1.0, 0.0, 0.0);     // (R, G, B) Color for negative space: non-pulse area  
+    vec3 rgb_pause = vec3(0.0, 0.0, 0.1);     // (R, G, B) Color for negative space: non-pulse area  
     vec3 rgb_pulse = vec3(0.0, 1.0, 0.0);    // (R, G, B) Color for pulse
     float speed_global_modifier = 1.0;    // When set to 1.0, cycle will play at 1 second per unit of duration
     float width_pulse_head_in_leds = 1.0;
@@ -101,26 +91,35 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     vec3 ones3d = vec3(1.0, 1.0, 1.0);
     float color_brightness_of_display_output_vector_mean_percent = dot(ones3d, display_output_vector)/3.0;
     
-    
     if( color_brightness_of_display_output_vector_mean_percent < color_pulse_minimum_brightness_percent){
-        //float inverse_dot_product_mean = ( 1.0 / color_pulse_minimum_brightness_percent );
-        float rgb_pulse_sum = rgb_pulse.x + rgb_pulse.y + rgb_pulse.z;
-        vec3 rgb_ratio = vec3((rgb_pulse.x / rgb_pulse_sum), (rgb_pulse.y / rgb_pulse_sum), (rgb_pulse.z / rgb_pulse_sum));
+        float rgb_pulse_brightness_sum = rgb_pulse.x + rgb_pulse.y + rgb_pulse.z;
+        vec3 rgb_ratio = vec3((rgb_pulse.x / rgb_pulse_brightness_sum), (rgb_pulse.y / rgb_pulse_brightness_sum), (rgb_pulse.z / rgb_pulse_brightness_sum));
         display_output_vector = (rgb_ratio * color_pulse_minimum_brightness_percent * 3.0);
     }
-
-
-    // Add the uniform background color
-    if(color_combine_background_with_pause_color){
-        display_output_vector = display_output_vector + rgb_background;
+    
+    
+    // Establish cutoff location for pause section coloring
+    float color_brightness_intensity;
+    if( color_brightness_cutoff_includes_background_brightness){
+        color_brightness_intensity = (dot(ones3d, display_output_vector) + dot(ones3d, rgb_background)) / 3.0;
     }
     else{
-        
+        color_brightness_intensity = dot(ones3d, display_output_vector) / 3.0;
     }
 
-    
-    // debug line to test viewport coordinates
-    //display_output_vector = map_viewport_coords(fragCoord);
+    // Switch to pause-section coloring
+    if (color_brightness_intensity < color_brightness_cutoff){
+         display_output_vector = rgb_pause;
+         
+         // Add the optional background color
+         if(color_combine_background_with_pause_color){
+             display_output_vector = display_output_vector + rgb_background;
+         }
+    }
+    // Apply background to pulse section
+    else{
+        display_output_vector = display_output_vector + rgb_background;
+    }
     
     fragColor = vec4(display_output_vector.x, display_output_vector.y, display_output_vector.z, 1.0);
 }

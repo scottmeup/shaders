@@ -1,5 +1,9 @@
 // configurable color pulses
 
+// To do:
+// - Discrete LED output
+// - Check if tail squishing is working as intended
+
 const int size_of_display_in_columns = 10;    // how many parallel pulses to run
 const bool direction_movement_horizontal = false;
 const bool direction_movement_reversed = false;

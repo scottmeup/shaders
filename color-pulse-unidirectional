@@ -50,9 +50,6 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     if(direction_movement_reversed){
         speed_reverse_modifier = -1.0;
     }
-    
-    
-    // either or of the time setting works with the code, but at least the one with mod won't get insanely large
     float time = mod(iTime*speed_global_modifier*speed_reverse_modifier, duration_of_cycle);
     float position_of_pulse_as_percent_of_display = speed_of_movement_per_second_as_percent_of_display * time;
 

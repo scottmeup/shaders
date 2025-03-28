@@ -120,7 +120,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 
     // Populate first pulse with some test data
     for(int i=0; i<size_of_display_in_columns; i++){
-        pulse[i] = initialize_pulse_settings_first(float(i+3));
+        pulse[i] = initialize_pulse_settings_example(float(i+3));
     }
     // End User Config / Example Settings Section 
 

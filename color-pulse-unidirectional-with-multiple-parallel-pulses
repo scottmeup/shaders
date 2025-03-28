@@ -172,6 +172,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     }
     
 
+    // Establish what the current column is and call the method to generate it
     float position_of_current_location_y_as_percent_of_display = (position_current_pixel_y / size_display_height_in_pixels);
     int display_current_pulse = int(floor(position_of_current_location_y_as_percent_of_display * float(size_of_display_in_columns)));
     display_output_vector = generate_rgb_output_column(pulse[display_current_pulse], distance_of_current_location_from_pulse_as_percent);

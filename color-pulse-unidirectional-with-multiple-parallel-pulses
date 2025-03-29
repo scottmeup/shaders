@@ -6,7 +6,7 @@
 
 const int size_of_display_in_columns = 10;    // how many parallel pulses to run
 const bool direction_movement_horizontal = false;
-const bool direction_movement_reversed = false;
+const bool direction_movement_reversed = true;
 const float duration_of_pause = 2.0;   //  Time between the front of the pulse leaving the screen and the next pulse appearing 
 const float duration_of_pulse = 3.0;    // Time taken for the front of the pulse to run across the display
 const float speed_global_modifier = 1.0;    // When set to 1.0, cycle will play at 1 second per unit of duration
@@ -63,6 +63,12 @@ vec3 generate_rgb_output_column(Pulse_settings pulse, float distance_of_current_
     // Draw the current pulse
     
     vec3 display_output_vector_column;
+    
+    float direction_reverse_modifier = 1.0;
+    if (direction_movement_reversed){
+        direction_reverse_modifier = -1.0;
+    }
+    
     // the result of this should be the duration in seconds of the whole cycle when global speed = 1, as well as the size 
     // of the whole cycle as a multiple of the screen size
     float ratio_of_total_cycle_to_display = ( ( duration_of_pause + duration_of_pulse ) / duration_of_pulse );
@@ -71,18 +77,35 @@ vec3 generate_rgb_output_column(Pulse_settings pulse, float distance_of_current_
     if(pulse.display_discrete_led_output){
         float size_of_led_as_percent_of_display = ( 1.0 / pulse.size_of_display_in_leds );
         
-        if ( distance_of_current_location_from_pulse_as_percent > (ratio_of_total_cycle_to_display - distance_of_current_location_behind_start_of_led_in_percent) ){
-            distance_of_current_location_from_pulse_as_percent -= ratio_of_total_cycle_to_display;
+        if(direction_movement_reversed){
+            if ( (distance_of_current_location_from_pulse_as_percent + distance_of_current_location_behind_start_of_led_in_percent) * direction_reverse_modifier > (ratio_of_total_cycle_to_display) * direction_reverse_modifier ){
+                //return vec3(1.0, 1.0, 1.0);
+                //ratio_of_total_cycle_to_display -= distance_of_current_location_from_pulse_as_percent;
+            }
+            else{
+                //return vec3(1.0, 0.0, 0.0);
+            }
         }
-        
+        else{
+            //if ( distance_of_current_location_from_pulse_as_percent > (ratio_of_total_cycle_to_display - distance_of_current_location_behind_start_of_led_in_percent) ){
+            if ( (distance_of_current_location_from_pulse_as_percent + distance_of_current_location_behind_start_of_led_in_percent) * direction_reverse_modifier > (ratio_of_total_cycle_to_display) * direction_reverse_modifier ){
+                return vec3(1.0, 1.0, 1.0);
+                //distance_of_current_location_from_pulse_as_percent -= ratio_of_total_cycle_to_display;
+            }
+            else{
+                //return vec3(1.0, 0.0, 0.0);
+            }
+        }
 
-        if (distance_of_current_location_behind_start_of_led_in_percent <= 0.0){
+
+        if (distance_of_current_location_behind_start_of_led_in_percent < 0.0){
             // Start of LED = No Change.
+            return vec3(1.0, 0.0, 1.0);
         }
         else{
             // Any other position throughout the LED should reflect the setting for the start of the LED
-            distance_of_current_location_from_pulse_as_percent = distance_of_current_location_from_pulse_as_percent + distance_of_current_location_behind_start_of_led_in_percent;
-        }  
+            distance_of_current_location_from_pulse_as_percent = distance_of_current_location_from_pulse_as_percent + (direction_reverse_modifier * distance_of_current_location_behind_start_of_led_in_percent);
+            }
     }
 
     

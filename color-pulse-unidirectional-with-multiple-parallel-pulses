@@ -1,13 +1,13 @@
 // configurable color pulses
 
 // To do:
-// - Discrete LED output
+// - Discrete LED output - reverse direction
 // - Confirm pulse tail squishing is working correctly
 
 const int size_of_display_in_columns = 10;    // how many parallel pulses to run
 const bool direction_movement_horizontal = false;
 const bool direction_movement_reversed = false;
-const float duration_of_pause = 1.0;   //  Time between the front of the pulse leaving the screen and the next pulse appearing 
+const float duration_of_pause = 2.0;   //  Time between the front of the pulse leaving the screen and the next pulse appearing 
 const float duration_of_pulse = 3.0;    // Time taken for the front of the pulse to run across the display
 const float speed_global_modifier = 1.0;    // When set to 1.0, cycle will play at 1 second per unit of duration
 
@@ -36,7 +36,7 @@ Pulse_settings initialize_pulse_settings_example(float size_of_display_in_leds){
     Pulse_settings pulse;
 
     // Begin User Config / Example Settings Section
-    pulse.color_brightness_cutoff = 0.03;    // switch to non-pulse, "pause" section of cycle coloring below this brightness
+    pulse.color_brightness_cutoff = 0.00;    // switch to non-pulse, "pause" section of cycle coloring below this brightness
     pulse.color_brightness_cutoff_includes_background_brightness = false;    
     pulse.color_pulse_minimum_brightness_percent = 0.00;    // Minimum brightness of pulse as a percent.
     pulse.color_combine_background_with_pause_color = true;
@@ -61,22 +61,26 @@ Pulse_settings initialize_pulse_settings_example(float size_of_display_in_leds){
 
 vec3 generate_rgb_output_column(Pulse_settings pulse, float distance_of_current_location_from_pulse_as_percent, float distance_of_current_location_behind_start_of_led_in_percent){
     // Draw the current pulse
+    
     vec3 display_output_vector_column;
+    // the result of this should be the duration in seconds of the whole cycle when global speed = 1, as well as the size 
+    // of the whole cycle as a multiple of the screen size
+    float ratio_of_total_cycle_to_display = ( ( duration_of_pause + duration_of_pulse ) / duration_of_pulse );
     
+    // Discrete LED output
     if(pulse.display_discrete_led_output){
-    
-        // Discrete LED output
-        float size_of_led_as_percent_of_display = pulse.size_of_led_as_percent_of_display;
+        float size_of_led_as_percent_of_display = ( 1.0 / pulse.size_of_display_in_leds );
+        
+        if ( distance_of_current_location_from_pulse_as_percent > (ratio_of_total_cycle_to_display - distance_of_current_location_behind_start_of_led_in_percent) ){
+            distance_of_current_location_from_pulse_as_percent -= ratio_of_total_cycle_to_display;
+        }
+        
 
-        if (distance_of_current_location_behind_start_of_led_in_percent < 0.0){
+        if (distance_of_current_location_behind_start_of_led_in_percent <= 0.0){
             // Start of LED = No Change.
         }
-        else if (distance_of_current_location_behind_start_of_led_in_percent < 0.0){
-            // error condition trace
-            return vec3(1.0, 0.0, 0.0);
-        }
-        // Any other position throughout the LED should reflect the setting for the start of the LED
         else{
+            // Any other position throughout the LED should reflect the setting for the start of the LED
             distance_of_current_location_from_pulse_as_percent = distance_of_current_location_from_pulse_as_percent + distance_of_current_location_behind_start_of_led_in_percent;
         }  
     }

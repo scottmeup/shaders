@@ -25,9 +25,6 @@ struct Pulse_settings
     vec3 rgb_pulse;    // (R, G, B) Color for pulse
     float size_pulse_head_in_leds;
     float size_of_display_in_leds;
-    float size_of_led_as_percent_of_display;
-    float size_of_pulse_head_as_percent_of_display;
-    float ratio_of_display_size_to_pulse_tail_size;
 };
 
 
@@ -52,11 +49,6 @@ Pulse_settings initialize_pulse_settings_example(float size_of_display_in_leds){
     pulse.size_of_display_in_leds = size_of_display_in_leds;
     // End User Config / Example Settings Section
 
-    // These will not be recalculated automatically if any of the above pulse settings are altered after creation
-    pulse.size_of_led_as_percent_of_display = 1.0 / pulse.size_of_display_in_leds;
-    pulse.size_of_pulse_head_as_percent_of_display = pulse.size_of_led_as_percent_of_display * pulse.size_pulse_head_in_leds;
-    pulse.ratio_of_display_size_to_pulse_tail_size = 1.0 / (1.0 - pulse.size_of_pulse_head_as_percent_of_display);
-
     return pulse;
 }
 //
@@ -67,11 +59,6 @@ vec3 generate_rgb_output_column(Pulse_settings pulse, float distance_of_current_
     // Draw the current pulse
     
     vec3 display_output_vector_column;
-    
-    float direction_reverse_modifier = 1.0;
-    if (direction_movement_reversed){
-        direction_reverse_modifier = -1.0;
-    }
     
     // the result of this should be the duration in seconds of the whole cycle when global speed = 1, as well as the size 
     // of the whole cycle as a multiple of the screen size
@@ -96,16 +83,19 @@ vec3 generate_rgb_output_column(Pulse_settings pulse, float distance_of_current_
         }
     }
 
-    
-    if ((distance_of_current_location_from_pulse_as_percent) < pulse.size_of_pulse_head_as_percent_of_display){
+    float size_of_led_as_percent_of_display = 1.0 / pulse.size_of_display_in_leds;
+    float size_of_pulse_head_as_percent_of_display = size_of_led_as_percent_of_display * pulse.size_pulse_head_in_leds;
+    float ratio_of_display_size_to_pulse_tail_size = 1.0 / (1.0 - size_of_pulse_head_as_percent_of_display);
+
+    if ((distance_of_current_location_from_pulse_as_percent) < size_of_pulse_head_as_percent_of_display){
         // Pulse Head
         display_output_vector_column = pulse.rgb_pulse;
         }
     else{
         // Pulse Tail
         // Squish the decay rate into the non-head area of the pulse
-        float distance_from_pulse_head_percent = (distance_of_current_location_from_pulse_as_percent - pulse.size_of_pulse_head_as_percent_of_display);
-        float distance_from_pulse_head_percent_normalised = ( distance_from_pulse_head_percent * pulse.ratio_of_display_size_to_pulse_tail_size );
+        float distance_from_pulse_head_percent = (distance_of_current_location_from_pulse_as_percent - size_of_pulse_head_as_percent_of_display);
+        float distance_from_pulse_head_percent_normalised = ( distance_from_pulse_head_percent * ratio_of_display_size_to_pulse_tail_size );
         float decay_linear = 1.0 - (distance_from_pulse_head_percent_normalised * pulse.decay_speed_linear);        
         float decay_exponential = exp(-distance_from_pulse_head_percent_normalised * pulse.decay_speed_exponential);
         float decay_total = decay_linear * decay_exponential;

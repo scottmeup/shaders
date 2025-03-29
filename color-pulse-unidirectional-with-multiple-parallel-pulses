@@ -42,7 +42,7 @@ Pulse_settings initialize_pulse_settings_example(float size_of_display_in_leds){
     pulse.color_combine_background_with_pause_color = true;
     pulse.decay_speed_linear = 1.0;    // 0.0 for no linear decay 
     pulse.decay_speed_exponential = 1.0;    // 0.0 for no exponential decay
-    pulse.display_discrete_led_output = false; // To-do
+    pulse.display_discrete_led_output = true; // To-do
     pulse.rgb_background = vec3(0.0, 0.1, 0.2);    // (R, G, B) Color applied uniformly on top of others
     pulse.rgb_pause = vec3(0.0, 0.0, 0.75);     // (R, G, B) Color for negative space: non-pulse area  
     pulse.rgb_pulse = vec3(0.0, 1.0, 0.0);    // (R, G, B) Color for pulse
@@ -62,15 +62,23 @@ Pulse_settings initialize_pulse_settings_example(float size_of_display_in_leds){
 vec3 generate_rgb_output_column(Pulse_settings pulse, float distance_of_current_location_from_pulse_as_percent, float distance_of_current_location_behind_start_of_led_in_percent){
     // Draw the current pulse
     vec3 display_output_vector_column;
+    
+    if(pulse.display_discrete_led_output){
+    
+        // Discrete LED output
+        float size_of_led_as_percent_of_display = pulse.size_of_led_as_percent_of_display;
 
-    // Discrete LED output
-    // Start of LED = No Change.
-    if (distance_of_current_location_behind_start_of_led_in_percent == 0.0){
-
-    }
-    // Any other position throughout the LED should reflect the setting for the start of the LED
-    else{
-        distance_of_current_location_from_pulse_as_percent = distance_of_current_location_from_pulse_as_percent - distance_of_current_location_behind_start_of_led_in_percent;
+        if (distance_of_current_location_behind_start_of_led_in_percent < 0.0){
+            // Start of LED = No Change.
+        }
+        else if (distance_of_current_location_behind_start_of_led_in_percent < 0.0){
+            // error condition trace
+            return vec3(1.0, 0.0, 0.0);
+        }
+        // Any other position throughout the LED should reflect the setting for the start of the LED
+        else{
+            distance_of_current_location_from_pulse_as_percent = distance_of_current_location_from_pulse_as_percent + distance_of_current_location_behind_start_of_led_in_percent;
+        }  
     }
 
     
@@ -203,7 +211,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 
     float size_of_current_pulse_display_in_leds = pulse[index_current_pulse].size_of_display_in_leds;
     float size_of_current_pulse_led_in_screen_percent = ( 1.0 / size_of_current_pulse_display_in_leds );
-    float distance_of_current_screen_position_behind_start_of_led_in_percent = -1.0 * mod(position_of_current_location_y_as_percent_of_display, size_of_current_pulse_led_in_screen_percent);
+    float distance_of_current_screen_position_behind_start_of_led_in_percent = 1.0 * mod(position_of_current_location_y_as_percent_of_display, size_of_current_pulse_led_in_screen_percent);
     
     // Call function to generate column output
     display_output_vector = generate_rgb_output_column(pulse[index_current_pulse], distance_of_current_location_from_pulse_as_percent, distance_of_current_screen_position_behind_start_of_led_in_percent);

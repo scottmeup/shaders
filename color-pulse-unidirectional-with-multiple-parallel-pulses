@@ -64,16 +64,15 @@ vec3 generate_rgb_output_column(Pulse_settings pulse, float distance_of_current_
     vec3 display_output_vector_column;
 
     // Discrete LED output
-    if(pulse.display_discrete_led_output){
-        // Start of LED = No Change.
-        if (distance_of_current_location_behind_start_of_led_in_percent == 0.0){
-        }
-        // Any other position throughout the LED should reflect the setting for the start of the LED
-        else{
-            distance_of_current_location_from_pulse_as_percent = distance_of_current_location_from_pulse_as_percent - distance_of_current_location_behind_start_of_led_in_percent;
-        }
+    // Start of LED = No Change.
+    if (distance_of_current_location_behind_start_of_led_in_percent == 0.0){
+
     }
-    
+    // Any other position throughout the LED should reflect the setting for the start of the LED
+    else{
+        distance_of_current_location_from_pulse_as_percent = distance_of_current_location_from_pulse_as_percent - distance_of_current_location_behind_start_of_led_in_percent;
+    }
+
     
     if ((distance_of_current_location_from_pulse_as_percent) < pulse.size_of_pulse_head_as_percent_of_display){
         // Pulse Head

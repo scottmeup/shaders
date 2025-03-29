@@ -59,13 +59,21 @@ Pulse_settings initialize_pulse_settings_example(float size_of_display_in_leds){
 }
 
 
-float generate_discrete_led_distance(float numLEDs){
-    return 0.5;
-}
-
-vec3 generate_rgb_output_column(Pulse_settings pulse, float distance_of_current_location_from_pulse_as_percent){
+vec3 generate_rgb_output_column(Pulse_settings pulse, float distance_of_current_location_from_pulse_as_percent, float distance_of_current_location_behind_start_of_led_in_percent){
     // Draw the current pulse
     vec3 display_output_vector_column;
+
+    // Discrete LED output
+    if(pulse.display_discrete_led_output){
+        // Start of LED = No Change.
+        if (distance_of_current_location_behind_start_of_led_in_percent == 0.0){
+        }
+        // Any other position throughout the LED should reflect the setting for the start of the LED
+        else{
+            distance_of_current_location_from_pulse_as_percent = distance_of_current_location_from_pulse_as_percent - distance_of_current_location_behind_start_of_led_in_percent;
+        }
+    }
+    
     
     if ((distance_of_current_location_from_pulse_as_percent) < pulse.size_of_pulse_head_as_percent_of_display){
         // Pulse Head
@@ -183,21 +191,23 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 
     // Calculate the column index of the current location and call the method to generate it
     float position_of_current_location_x_as_percent_of_display = (position_current_pixel_x / size_display_width_in_pixels);
-    int display_current_pulse = int(floor(position_of_current_location_x_as_percent_of_display * float(size_of_display_in_columns)));
-    float size_of_current_pulse_display_in_leds = pulse[display_current_pulse].size_of_display_in_leds;
+    int index_current_pulse = int(floor(position_of_current_location_x_as_percent_of_display * float(size_of_display_in_columns)));
     
     // Discrete LED test code. I think this is the opposite of what I want: discrete color levels averaged over a space, decreased resolution of color gradient.
     // distance_of_current_location_from_pulse_as_percent = floor(size_of_current_pulse_display_in_leds * distance_of_current_location_from_pulse_as_percent) / size_of_current_pulse_display_in_leds;
     
-    // Want: 
-    // pixel location = floor ( ( pixel_x location as percentage of screen height ) * number of LEDs  ) / number of LEDs
-    // What might work (although this isn't going to decay smoothly): 
-    // position of pulse = floor ( ( pulse location as percentage of screen height ) * number of LEDs  ) / number of LEDs
-    // 
+    // Plan:
+    // Divide screen into segments by height: each section should be (1.0 / numLEDs) high. This will give a percentage of screen height per segment.
+    // The first element of each section will follow the programming already done for non-discrete output.
+    // Each following element of the same section will be set to display the same output as the first element.
+    // This will repeat for each segment.
+
+    float size_of_current_pulse_display_in_leds = pulse[index_current_pulse].size_of_display_in_leds;
+    float size_of_current_pulse_led_in_screen_percent = ( 1.0 / size_of_current_pulse_display_in_leds );
+    float distance_of_current_screen_position_behind_start_of_led_in_percent = -1.0 * mod(position_of_current_location_y_as_percent_of_display, size_of_current_pulse_led_in_screen_percent);
     
-    //if position_of_current_location_x_as_percent_of_display
-    
-    display_output_vector = generate_rgb_output_column(pulse[display_current_pulse], distance_of_current_location_from_pulse_as_percent);
+    // Call function to generate column output
+    display_output_vector = generate_rgb_output_column(pulse[index_current_pulse], distance_of_current_location_from_pulse_as_percent, distance_of_current_screen_position_behind_start_of_led_in_percent);
 
 
     // Display final output

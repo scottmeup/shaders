@@ -31,6 +31,8 @@ struct Pulse_settings
 };
 
 
+// Begin User Config / Example Settings Section
+//
 Pulse_settings initialize_pulse_settings_example(float size_of_display_in_leds){
     // Example method to initialize settings for one column
     Pulse_settings pulse;
@@ -57,6 +59,8 @@ Pulse_settings initialize_pulse_settings_example(float size_of_display_in_leds){
 
     return pulse;
 }
+//
+// End User Config / Example Settings Section
 
 
 vec3 generate_rgb_output_column(Pulse_settings pulse, float distance_of_current_location_from_pulse_as_percent, float distance_of_current_location_behind_start_of_led_in_percent){
@@ -77,59 +81,19 @@ vec3 generate_rgb_output_column(Pulse_settings pulse, float distance_of_current_
     if(pulse.display_discrete_led_output){
         float size_of_led_as_percent_of_display = ( 1.0 / pulse.size_of_display_in_leds );
         
-        // Reverse direction discrete output
-        if(direction_movement_reversed){
-            if ( (distance_of_current_location_from_pulse_as_percent + distance_of_current_location_behind_start_of_led_in_percent) > (ratio_of_total_cycle_to_display) ){
-                //return vec3(1.0, 1.0, 1.0);
-                distance_of_current_location_from_pulse_as_percent -= ratio_of_total_cycle_to_display;
-            }
-            else{
-                //return vec3(1.0, 0.0, 0.0);
-            }
-            if(distance_of_current_location_from_pulse_as_percent > 0.0){
-                //return vec3(0.0, 0.0, (distance_of_current_location_from_pulse_as_percent/ratio_of_total_cycle_to_display));
-            }
-            /*
-            if(distance_of_current_location_behind_start_of_led_in_percent < 0.0){
-                return vec3(0.0, (distance_of_current_location_behind_start_of_led_in_percent / size_of_led_as_percent_of_display), 0.0);
-            }
-            else{
-                return vec3((distance_of_current_location_behind_start_of_led_in_percent / size_of_led_as_percent_of_display), 0.0, 0.0);            
-            }
-            */
-        }
-        // Regular direction discrete output
-        else{
- 
-            if ( (distance_of_current_location_from_pulse_as_percent + distance_of_current_location_behind_start_of_led_in_percent) > ratio_of_total_cycle_to_display ){
-                return vec3(1.0, 1.0, 1.0);
-                //distance_of_current_location_from_pulse_as_percent -= ratio_of_total_cycle_to_display;
-            }
-            else{
-                //return vec3(1.0, 0.0, 0.0);
-            }
-            if(distance_of_current_location_behind_start_of_led_in_percent < 0.0){
-                return vec3(0.0, (distance_of_current_location_behind_start_of_led_in_percent), 0.0);
-            }
-            /*
-            if(distance_of_current_location_behind_start_of_led_in_percent < 0.0){
-                return vec3(0.0, (distance_of_current_location_behind_start_of_led_in_percent / size_of_led_as_percent_of_display), 0.0);
-            }
-            else{
-                return vec3((distance_of_current_location_behind_start_of_led_in_percent / size_of_led_as_percent_of_display), 0.0, 0.0);            
-            }
-            */
-        }
-
-
-        if ((distance_of_current_location_behind_start_of_led_in_percent) < 0.0){
-            // Start of LED = No Change.
-            return vec3(1.0, 0.0, 1.0);
+        if ( (distance_of_current_location_from_pulse_as_percent + distance_of_current_location_behind_start_of_led_in_percent) > (ratio_of_total_cycle_to_display) ){
+            // Black magic.
+            // As the distance from the current location from the index of the pulse location approaches the full cycle width,
+            // If adding the distance from the current location from the beginning position of it's LED is greater than one cycle width,
+            // Then subtract the distance of one full cycle width from the current location.
+            //
+            // Essentially: Generate the entire first LED in the pulse as soon as the pulse index enters it's boundaries
+            distance_of_current_location_from_pulse_as_percent -= ratio_of_total_cycle_to_display;
         }
         else{
-            // Any other position throughout the LED should reflect the setting for the start of the LED
+            // Any other position should have it's distance value set to the beginning of the LED that it is a member of
             distance_of_current_location_from_pulse_as_percent = distance_of_current_location_from_pulse_as_percent + (distance_of_current_location_behind_start_of_led_in_percent);
-            }
+        }
     }
 
     
@@ -189,7 +153,8 @@ vec3 generate_rgb_output_column(Pulse_settings pulse, float distance_of_current_
 
 void mainImage( out vec4 fragColor, in vec2 fragCoord )
 {
-    // Begin User Config / Example Settings Section 
+    // Begin User Config / Example Settings Section
+    //
     // Create array with number of parallel pulses
     Pulse_settings pulse[size_of_display_in_columns];
 
@@ -197,7 +162,8 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     for(int i=0; i<size_of_display_in_columns; i++){
         pulse[i] = initialize_pulse_settings_example(float(i+3));
     }
-    // End User Config / Example Settings Section 
+    //
+    // End User Config / Example Settings Section
 
 
     // Adjust the display parameters to suit the direction & size of the display
@@ -251,9 +217,11 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     float position_of_current_location_x_as_percent_of_display = (position_current_pixel_x / size_display_width_in_pixels);
     int index_current_pulse = int(floor(position_of_current_location_x_as_percent_of_display * float(size_of_display_in_columns)));
     
+    
     // Get the number of LED elements for the current column
     float size_of_current_pulse_display_in_leds = pulse[index_current_pulse].size_of_display_in_leds;
     float size_of_current_pulse_led_in_screen_percent = ( 1.0 / size_of_current_pulse_display_in_leds );
+    
     
     // Set up distance of screen location from beginning of LED
     float distance_of_current_screen_position_behind_start_of_led_in_percent;
@@ -263,6 +231,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     else{
         distance_of_current_screen_position_behind_start_of_led_in_percent = mod(position_of_current_location_y_as_percent_of_display, size_of_current_pulse_led_in_screen_percent);
     }
+    
     
     // Call function to generate column output
     display_output_vector = generate_rgb_output_column(pulse[index_current_pulse], distance_of_current_location_from_pulse_as_percent, distance_of_current_screen_position_behind_start_of_led_in_percent);

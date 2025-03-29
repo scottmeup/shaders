@@ -1,5 +1,9 @@
 // configurable color pulses
 
+// To do:
+// - Discrete LED output
+// - Confirm pulse tail squishing is working correctly
+
 const int size_of_display_in_columns = 10;    // how many parallel pulses to run
 const bool direction_movement_horizontal = false;
 const bool direction_movement_reversed = false;
@@ -40,7 +44,7 @@ Pulse_settings initialize_pulse_settings_example(float size_of_display_in_leds){
     pulse.decay_speed_exponential = 1.0;    // 0.0 for no exponential decay
     pulse.display_discrete_led_output = false; // To-do
     pulse.rgb_background = vec3(0.0, 0.1, 0.2);    // (R, G, B) Color applied uniformly on top of others
-    pulse.rgb_pause = vec3(0.0, 0.0, 1.0);     // (R, G, B) Color for negative space: non-pulse area  
+    pulse.rgb_pause = vec3(0.0, 0.0, 0.75);     // (R, G, B) Color for negative space: non-pulse area  
     pulse.rgb_pulse = vec3(0.0, 1.0, 0.0);    // (R, G, B) Color for pulse
     pulse.size_pulse_head_in_leds = 1.0;
     pulse.size_of_display_in_leds = size_of_display_in_leds;
@@ -55,9 +59,14 @@ Pulse_settings initialize_pulse_settings_example(float size_of_display_in_leds){
 }
 
 
+float generate_discrete_led_distance(float numLEDs){
+    return 0.5;
+}
+
 vec3 generate_rgb_output_column(Pulse_settings pulse, float distance_of_current_location_from_pulse_as_percent){
     // Draw the current pulse
     vec3 display_output_vector_column;
+    
     if ((distance_of_current_location_from_pulse_as_percent) < pulse.size_of_pulse_head_as_percent_of_display){
         // Pulse Head
         display_output_vector_column = pulse.rgb_pulse;
@@ -132,21 +141,21 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     float position_current_pixel_x;
     float position_current_pixel_y;
     if (direction_movement_horizontal){
-        size_display_width_in_pixels = iResolution.x;
-        size_display_height_in_pixels = iResolution.y;
-        position_current_pixel_x = fragCoord.x;
-        position_current_pixel_y = fragCoord.y;
-        }
-    else{
         size_display_width_in_pixels = iResolution.y;
         size_display_height_in_pixels = iResolution.x;
         position_current_pixel_x = fragCoord.y;
-        position_current_pixel_y = fragCoord.x;   
+        position_current_pixel_y = fragCoord.x;
+        }
+    else{
+        size_display_width_in_pixels = iResolution.x;
+        size_display_height_in_pixels = iResolution.y;
+        position_current_pixel_x = fragCoord.x;
+        position_current_pixel_y = fragCoord.y;   
     }
     
 
     // Set additional parameters related to display calculation
-    float position_of_current_location_x_as_percent_of_display = position_current_pixel_x / size_display_width_in_pixels;
+    float position_of_current_location_y_as_percent_of_display = position_current_pixel_y / size_display_height_in_pixels;
     float duration_of_cycle = duration_of_pause + duration_of_pulse;
     float ratio_of_total_cycle_to_display = duration_of_cycle / duration_of_pulse;
     float speed_of_movement_per_second_as_percent_of_display = 1.0 / duration_of_pulse;
@@ -165,15 +174,29 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     vec3 display_output_vector;
     float distance_of_current_location_from_pulse_as_percent;
     if(direction_movement_reversed){
-        distance_of_current_location_from_pulse_as_percent = mod((position_of_current_location_x_as_percent_of_display - position_of_pulse_as_percent_of_display), ratio_of_total_cycle_to_display); // expect this to reach values over 100% if pause time is greater than 0
+        distance_of_current_location_from_pulse_as_percent = mod((position_of_current_location_y_as_percent_of_display - position_of_pulse_as_percent_of_display), ratio_of_total_cycle_to_display); // expect this to reach values over 100% if pause time is greater than 0
     }
     else{
-        distance_of_current_location_from_pulse_as_percent = mod((position_of_pulse_as_percent_of_display - position_of_current_location_x_as_percent_of_display), ratio_of_total_cycle_to_display); // expect this to reach values over 100% if pause time is greater than 0    
+        distance_of_current_location_from_pulse_as_percent = mod((position_of_pulse_as_percent_of_display - position_of_current_location_y_as_percent_of_display), ratio_of_total_cycle_to_display); // expect this to reach values over 100% if pause time is greater than 0    
     }
-    
+        
 
-    float position_of_current_location_y_as_percent_of_display = (position_current_pixel_y / size_display_height_in_pixels);
-    int display_current_pulse = int(floor(position_of_current_location_y_as_percent_of_display * float(size_of_display_in_columns)));
+    // Calculate the column index of the current location and call the method to generate it
+    float position_of_current_location_x_as_percent_of_display = (position_current_pixel_x / size_display_width_in_pixels);
+    int display_current_pulse = int(floor(position_of_current_location_x_as_percent_of_display * float(size_of_display_in_columns)));
+    float size_of_current_pulse_display_in_leds = pulse[display_current_pulse].size_of_display_in_leds;
+    
+    // Discrete LED test code. I think this is the opposite of what I want: discrete color levels averaged over a space, decreased resolution of color gradient.
+    // distance_of_current_location_from_pulse_as_percent = floor(size_of_current_pulse_display_in_leds * distance_of_current_location_from_pulse_as_percent) / size_of_current_pulse_display_in_leds;
+    
+    // Want: 
+    // pixel location = floor ( ( pixel_x location as percentage of screen height ) * number of LEDs  ) / number of LEDs
+    // What might work (although this isn't going to decay smoothly): 
+    // position of pulse = floor ( ( pulse location as percentage of screen height ) * number of LEDs  ) / number of LEDs
+    // 
+    
+    //if position_of_current_location_x_as_percent_of_display
+    
     display_output_vector = generate_rgb_output_column(pulse[display_current_pulse], distance_of_current_location_from_pulse_as_percent);
 
 

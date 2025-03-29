@@ -2,7 +2,7 @@
 
 void mainImage( out vec4 fragColor, in vec2 fragCoord )
 {
-    float color_brightness_cutoff = 0.05;    // switch to non-pulse, "pause" section of cycle coloring below this brightness
+    float color_brightness_cutoff = 0.00;    // switch to non-pulse, "pause" section of cycle coloring below this brightness
     bool color_brightness_cutoff_includes_background_brightness = false;    
     float color_pulse_minimum_brightness_percent = 0.00;    // Minimum brightness of pulse as a percent.
     bool color_combine_background_with_pause_color = false;
@@ -11,7 +11,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     bool direction_movement_horizontal = false;
     bool direction_movement_reversed = false;
     bool display_discrete_led_output = false; // To-do
-    float duration_of_pause = 1.0;   //  Time between the front of the pulse leaving the screen and the next pulse appearing 
+    float duration_of_pause = 3.0;   //  Time between the front of the pulse leaving the screen and the next pulse appearing 
     float duration_of_pulse = 3.0;    // Time taken for the front of the pulse to run across the display
     vec3 rgb_background = vec3(0.0, 0.0, 1.0);    // (R, G, B) Color applied uniformly on top of others
     vec3 rgb_pause = vec3(0.0, 0.0, 0.1);     // (R, G, B) Color for negative space: non-pulse area  
@@ -74,7 +74,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         // Pulse Tail
         // Squish the decay rate into the non-head area of the pulse
         float distance_from_pulse_head_percent = (distance_of_current_location_from_pulse_as_percent - size_of_pulse_head_as_percent_of_display);
-        float distance_from_pulse_head_percent_normalised = ( distance_from_pulse_head_percent / ratio_of_display_size_to_pulse_tail_size );
+        float distance_from_pulse_head_percent_normalised = ( distance_from_pulse_head_percent * ratio_of_display_size_to_pulse_tail_size );
         float decay_linear = 1.0 - (distance_from_pulse_head_percent_normalised * decay_speed_linear);        
         float decay_exponential = exp(-distance_from_pulse_head_percent_normalised * decay_speed_exponential);
         float decay_total = decay_linear * decay_exponential;

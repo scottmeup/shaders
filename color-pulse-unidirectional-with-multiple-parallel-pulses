@@ -1,8 +1,7 @@
 // configurable color pulses
 
 // To-do
-// - test non-discrete output
-// - clean up struct format
+// I think the exponential fade-in could be improved by taking the position at the end of the LED instead of the front.
 
 // Begin User Config Section
 //
@@ -21,20 +20,20 @@ const vec3 zeros3d = vec3(0.0, 0.0, 0.0);
 struct Pulse_settings 
 {
     vec3 rgb_pulse;    // (R, G, B) Color for pulse
-    vec3 rgb_pause;     // (R, G, B) Color for negative space: non-pulse area  
+    vec3 rgb_pause;     // (R, G, B) Color for negative space: non-pulse area
+    vec3 rgb_fade_in;    // (R, G, B) Color applied to fade-in in front of pulse
     vec3 rgb_background;    // (R, G, B) Color applied uniformly on top of others
     float size_of_display_in_leds;    // Set to the number of LEDs in your display in order to align other settings properly   
     float size_pulse_head_in_leds;    // Non-decay area at the start of the pulse. Will run at brightness specified in rgb_pulse for the length of the number of LEDs specified
     float decay_speed_exponential;    // 0.0 for no exponential decay. Higher number = faster decay, shorter / darker pulse.
     float decay_speed_linear;    // 0.0 for no linear decay. Higher number = faster decay, shorter / darker pulse.
-    float color_brightness_cutoff;    // switch to non-pulse, "pause" section of cycle coloring below this brightness
+    float fade_in_speed_exponential;    // 0.0 for no exponential fade-in. Generate a fade-in on the LED before the pulse. Higher number = faster = shorter.
+    float fade_in_speed_linear;    // 0.0 for no linear fade-in. Generate a fade-in on the LED before the pulse. Higher number = faster = shorter.
+    float color_brightness_cutoff;    // switch to non-pulse, "pause" section of cycle coloring below this brightness.
     float color_pulse_minimum_brightness_percent;    // Minimum brightness of pulse as a percent. Will not decay below this level.
-    bool color_brightness_cutoff_includes_background_brightness;    // Consider background coloring or not when determining the brightness of a pixel for cutoff to pause coloring
-    bool color_combine_background_with_pause_color;    // Overlay the background color on top of the "pause" / negative space color
-    bool display_discrete_led_output;   // Simulate LED display based on size_of_display_in_leds
-    float fade_in_speed_exponential;    // Generate a fade-in on the LED before the pulse. Higher number = faster = shorter
-    float fade_in_speed_linear;    // Generate a fade-in on the LED before the pulse. Higher number = faster = shorter
-    vec3 rgb_fade_in;    // (R, G, B) Color applied to fade-in in front of pulse
+    bool color_brightness_cutoff_includes_background_brightness;    // Consider background coloring or not when determining the brightness of a pixel for cutoff to pause coloring.
+    bool color_combine_background_with_pause_color;    // Overlay the background color on top of the "pause" / negative space color.
+    bool display_discrete_led_output;   // Simulate LED display based on size_of_display_in_leds.
 };
 
 
@@ -43,12 +42,12 @@ struct Pulse_settings
 void Initialize_pulse_settings_array(inout Pulse_settings pulse[size_of_display_in_columns]){
     // Use order of variables listed above in "struct Pulse_settings"
 
-    pulse[0] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.05), vec3(0.0, 0.0, 0.0), 5.0, 1.0, 3.0, 0.0, 0.025, 0.0, false, false, true, 8.0, 8.0, vec3(1.0, 1.0, 0.0));  // Mouse bottom
-    pulse[1] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.05), vec3(0.0, 0.0, 0.0), 3.0, 2.0, 3.0, 0.0, 0.025, 0.0, false, false, true, 8.0, 8.0, vec3(0.0, 1.0, 1.0));  // Mouse top
-    pulse[2] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), 4.0, 1.0, 3.0, 0.0, 0.025, 0.0, false, false, true, 8.0, 8.0, vec3(1.0, 0.0, 1.0));  // Graphics Card
-    pulse[3] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), 14.0, 1.0, 3.0, 0.0, 0.025, 0.0, false, false, true, 8.0, 8.0, vec3(1.0, 1.0, 1.0));  // Case Front
-    pulse[4] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), 10.0, 1.0, 3.0, 0.0, 0.025, 0.0, false, false, true, 8.0, 8.0, vec3(1.0, 0.0, 0.0));  // Case Top
-    pulse[5] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), 4.0, 1.0, 3.0, 0.0, 0.025, 0.0, false, false, true, 8.0, 8.0, vec3(0.0, 0.0, 1.0));  // Motherboard
+    pulse[0] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.05), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 5.0, 1.0, 3.0, 0.0, 0.0, 0.0, 0.025, 0.0, false, false, true);  // Mouse bottom
+    pulse[1] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.05), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 3.0, 2.0, 3.0, 0.0, 0.0, 0.0, 0.025, 0.0, false, false, true);  // Mouse top
+    pulse[2] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 4.0, 1.0, 3.0, 0.0, 4.0, 4.0, 0.025, 0.0, false, false, true);  // Graphics Card
+    pulse[3] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 14.0, 1.0, 3.0, 0.0, 0.0, 0.0, 0.025, 0.0, false, false, true);  // Case Front
+    pulse[4] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 10.0, 1.0, 3.0, 0.0, 0.0, 0.0, 0.025, 0.0, false, false, true);  // Case Top
+    pulse[5] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 4.0, 1.0, 3.0, 0.0, 0.0, 0.0, 0.025, 0.0, false, false, true);  // Motherboard
 }
 //
 // End User Config / Example Settings Section

@@ -1,55 +1,45 @@
 // configurable color pulses
 
-// To do:
-// - Confirm pulse tail squishing is working correctly
-// - Testing
 
-const int size_of_display_in_columns = 10;    // how many parallel pulses to run
+// Begin User Config Section
+//
+const int size_of_display_in_columns = 6;    // how many parallel pulses to run
 const bool direction_movement_horizontal = false;
 const bool direction_movement_reversed = true;
 const float duration_of_pause = 2.0;   //  Time between the front of the pulse leaving the screen and the next pulse appearing 
 const float duration_of_pulse = 3.0;    // Time taken for the front of the pulse to run across the display
 const float speed_global_modifier = 1.0;    // When set to 1.0, cycle will play at 1 second per unit of duration
+//
+// End User Config Section
 
 struct Pulse_settings 
 {
-    float color_brightness_cutoff;    // switch to non-pulse, "pause" section of cycle coloring below this brightness
-    bool color_brightness_cutoff_includes_background_brightness;    
-    float color_pulse_minimum_brightness_percent;    // Minimum brightness of pulse as a percent.
-    bool color_combine_background_with_pause_color;
-    float decay_speed_linear;// 0.0 for no linear decay 
-    float decay_speed_exponential;    // 0.0 for no exponential decay
-    bool display_discrete_led_output; // To-do
-    vec3 rgb_background;    // (R, G, B) Color applied uniformly on top of others
-    vec3 rgb_pause;     // (R, G, B) Color for negative space: non-pulse area  
     vec3 rgb_pulse;    // (R, G, B) Color for pulse
-    float size_pulse_head_in_leds;
-    float size_of_display_in_leds;
+    vec3 rgb_pause;     // (R, G, B) Color for negative space: non-pulse area  
+    vec3 rgb_background;    // (R, G, B) Color applied uniformly on top of others
+    float size_of_display_in_leds;    // Set to the number of LEDs in your display in order to align other settings properly   
+    float size_pulse_head_in_leds;    // Non-decay area at the start of the pulse. Will run at brightness specified in rgb_pulse for the length of the number of LEDs specified
+    float decay_speed_exponential;    // 0.0 for no exponential decay. Higher number = faster decay, shorter / darker pulse.
+    float decay_speed_linear;    // 0.0 for no linear decay. Higher number = faster decay, shorter / darker pulse.
+    float color_brightness_cutoff;    // switch to non-pulse, "pause" section of cycle coloring below this brightness
+    float color_pulse_minimum_brightness_percent;    // Minimum brightness of pulse as a percent. Will not decay below this level.
+    bool color_brightness_cutoff_includes_background_brightness;    // Consider background coloring or not when determining the brightness of a pixel for cutoff to pause coloring
+    bool color_combine_background_with_pause_color;    // Overlay the background color on top of the "pause" / negative space color
+    bool display_discrete_led_output;   // Simulate LED display based on size_of_display_in_leds
 };
 
 
 // Begin User Config / Example Settings Section
 //
-Pulse_settings initialize_pulse_settings_example(float size_of_display_in_leds){
-    // Example method to initialize settings for one column
-    Pulse_settings pulse;
-
-    // Begin User Config / Example Settings Section
-    pulse.color_brightness_cutoff = 0.00;    // switch to non-pulse, "pause" section of cycle coloring below this brightness
-    pulse.color_brightness_cutoff_includes_background_brightness = false;    
-    pulse.color_pulse_minimum_brightness_percent = 0.00;    // Minimum brightness of pulse as a percent.
-    pulse.color_combine_background_with_pause_color = true;
-    pulse.decay_speed_linear = 1.0;    // 0.0 for no linear decay 
-    pulse.decay_speed_exponential = 1.0;    // 0.0 for no exponential decay
-    pulse.display_discrete_led_output = true; // To-do
-    pulse.rgb_background = vec3(0.0, 0.1, 0.2);    // (R, G, B) Color applied uniformly on top of others
-    pulse.rgb_pause = vec3(0.0, 0.0, 0.75);     // (R, G, B) Color for negative space: non-pulse area  
-    pulse.rgb_pulse = vec3(0.0, 1.0, 0.0);    // (R, G, B) Color for pulse
-    pulse.size_pulse_head_in_leds = 1.0;
-    pulse.size_of_display_in_leds = size_of_display_in_leds;
-    // End User Config / Example Settings Section
-
-    return pulse;
+void Initialize_pulse_settings_array(inout Pulse_settings pulse[size_of_display_in_columns]){
+    // Use order of variables listed above in "struct Pulse_settings"
+    
+    pulse[0] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.05), vec3(0.0, 0.0, 0.0), 5.0, 1.0, 3.0, 0.0, 0.025, 0.0, false, false, true);  // Mouse bottom
+    pulse[1] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.05), vec3(0.0, 0.0, 0.0), 3.0, 2.0, 3.0, 0.0, 0.025, 0.0, false, false, true);  // Mouse top
+    pulse[2] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), 4.0, 1.0, 3.0, 0.0, 0.025, 0.0, false, false, true);  // Graphics Card
+    pulse[3] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), 14.0, 1.0, 3.0, 0.0, 0.025, 0.0, false, false, true);  // Case Front
+    pulse[4] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), 10.0, 1.0, 3.0, 0.0, 0.025, 0.0, false, false, true);  // Case Top
+    pulse[5] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), 4.0, 1.0, 3.0, 0.0, 0.025, 0.0, false, false, true);  // Motherboard
 }
 //
 // End User Config / Example Settings Section
@@ -146,13 +136,8 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     // Begin User Config / Example Settings Section
     //
     // Create array with number of parallel pulses
-    Pulse_settings pulse[size_of_display_in_columns];
-
-    // Populate first pulse with some test data
-    for(int i=0; i<size_of_display_in_columns; i++){
-        pulse[i] = initialize_pulse_settings_example(float(i+3));
-    }
-    //
+    Pulse_settings[size_of_display_in_columns] pulse;
+    Initialize_pulse_settings_array(pulse);
     // End User Config / Example Settings Section
 
 

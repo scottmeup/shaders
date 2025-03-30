@@ -1,8 +1,5 @@
 // configurable color pulses
 
-// To-do
-// I think the exponential fade-in could be improved by taking the position at the end of the LED instead of the front.
-
 // Begin User Config Section
 //
 const int size_of_display_in_columns = 6;    // how many parallel pulses to run

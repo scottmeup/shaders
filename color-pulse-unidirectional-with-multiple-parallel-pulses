@@ -9,15 +9,14 @@
 const int size_of_display_in_columns = 9;    // how many parallel pulses to run
 const bool direction_movement_horizontal = false;
 const bool direction_movement_reversed = true;
-const float duration_of_pause = 1.0;   //  Time between the front of the pulse leaving the screen and the next pulse appearing 
+const float duration_of_pause = 3.0;   //  Time between the front of the pulse leaving the screen and the next pulse appearing 
 const float duration_of_pulse = 3.0;    // Time taken for the front of the pulse to run across the display
-const float speed_global_modifier = 1.0;    // When set to 1.0, cycle will play at 1 second per unit of duration
+const float speed_global_modifier = 0.3;    // When set to 1.0, cycle will play at 1 second per unit of duration
 //
 // End User Config Section
 
 const vec3 ones3d = vec3(1.0, 1.0, 1.0);
 const vec3 zeros3d = vec3(0.0, 0.0, 0.0);
-const bool display_discrete_fade_in_advanced = true;
 
 struct Pulse_settings 
 {
@@ -49,8 +48,8 @@ void Initialize_pulse_settings_array(inout Pulse_settings pulse[size_of_display_
     pulse[2] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 14.0, 1.0, 3.0, 0.0, 0.0, 0.0, 0.025, 0.0, false, false, true);  // Case Front
     pulse[3] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 10.0, 1.0, 3.0, 0.0, 0.0, 0.0, 0.025, 0.0, false, false, true);  // Case Top
     pulse[4] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 4.0, 1.0, 3.0, 0.0, 0.0, 0.0, 0.025, 0.0, false, false, true);  // Motherboard
-    pulse[5] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(1.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 8.0, 1.0, 3.0, 0.0, 1.0, 1.0, 0.025, 0.0, false, false, true);  // Test 1
-    pulse[6] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(1.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 8.0, 1.0, 3.0, 0.0, 1.0, 1.0, 0.025, 0.0, false, false, false);  // Test 2
+    pulse[6] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(1.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 8.0, 1.0, 3.0, 0.0, 1.0, 1.0, 0.025, 0.0, false, false, true);  // Test 1
+    pulse[5] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(1.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 8.0, 1.0, 3.0, 0.0, 1.0, 1.0, 0.025, 0.0, false, false, false);  // Test 2
     pulse[7] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 1.0, 1.0), vec3(0.0, 0.0, 0.0), 8.0, 0.0, 3.0, 0.0, 1.0, 1.0, 0.025, 0.0, false, false, true);  // Test 3
     pulse[8] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 1.0, 1.0), vec3(0.0, 0.0, 0.0), 8.0, 0.0, 3.0, 0.0, 1.0, 1.0, 0.025, 0.0, false, false, false);  // Test 4
 }
@@ -129,9 +128,9 @@ vec3 generate_rgb_output_column(Pulse_settings pulse, float distance_of_current_
         // Do nothing if current location is less than 1 LED in front of the pulse;
     }
     else{
-        // Shift calculated distance for intensity one LED toward the pulse if discrete LED output is used
+        // Shift calculated distance for intensity one LED toward the back of the pulse if discrete LED output is used and pulse has no head
         float distance_of_current_location_in_front_of_pulse_adjusted_for_direction = distance_of_current_location_in_front_of_pulse_as_percent;
-        if(pulse.display_discrete_led_output && display_discrete_fade_in_advanced){
+        if(pulse.display_discrete_led_output && (pulse.size_pulse_head_in_leds == 0.0)){
             distance_of_current_location_in_front_of_pulse_adjusted_for_direction -= size_of_led_as_percent_of_display;
         }
         // Generate fade-in if current location is more than 1 LED in front of the pulse;

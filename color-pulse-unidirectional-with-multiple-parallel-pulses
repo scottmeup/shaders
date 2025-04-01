@@ -1,15 +1,20 @@
 // configurable color pulses
 
 
+// To-do
+// Fix bug with fade-in: Currently fade-in gives 1 LED at full intensity behind the LED that is actively fading in
+// Consider fade-in for 1st LED only option
+// Consider separating image generation function into separate functions 
+
 
 // Begin User Config Globals Section
 //
 //
-const int size_of_display_in_columns = 10;    // how many parallel pulses to run
+const int size_of_display_in_columns = 8;    // how many parallel pulses to run
 const bool direction_movement_horizontal = false;
 const bool direction_movement_reversed = true;
-const float duration_of_pause = 3.0;   //  Time between the front of the pulse leaving the screen and the next pulse appearing 
-const float duration_of_pulse = 3.0;    // Time taken for the front of the pulse to run across the display
+const float duration_of_pause = 1.0;   //  Time between the front of the pulse leaving the screen and the next pulse appearing 
+const float duration_of_pulse = 1.0;    // Time taken for the front of the pulse to run across the display
 const float speed_global_modifier = 0.5;    // When set to 1.0, cycle will play at 1 second per unit of duration
 //
 //
@@ -36,7 +41,7 @@ struct Pulse_settings
     float color_pulse_minimum_brightness_percent;    // Minimum brightness of pulse as a percent. Will not decay below this level.
     bool color_brightness_cutoff_includes_background_brightness;    // Consider background coloring or not when determining the brightness of a pixel for cutoff to pause coloring.
     bool color_combine_background_with_pause_color;    // Overlay the background color on top of the "pause" / negative space color.
-    bool color_combine_pulse_head_with_fade_in;    //
+    bool color_combine_pulse_head_with_fade_in;    // Smooth transition between fade-in and pulse head
     bool display_discrete_led_output;   // Simulate LED display based on size_of_display_in_leds.
 
 };
@@ -48,37 +53,39 @@ struct Pulse_settings
 //
 void Initialize_pulse_settings_array(inout Pulse_settings pulse[size_of_display_in_columns]){
     // Use order of variables listed above in "struct Pulse_settings"
-
-    pulse[0] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.05), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 5.0, 1.0, 3.0, 0.0, 0.0, 0.0, 0.025, 0.0, false, false, true, true);  // Mouse bottom
-    pulse[1] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.05), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 3.0, 2.0, 3.0, 0.0, 0.0, 0.0, 0.025, 0.0, false, false, true, true);  // Mouse top
-    pulse[2] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 14.0, 1.0, 3.0, 0.0, 0.0, 0.0, 0.025, 0.0, false, false, true, true);  // Case Front
-    pulse[3] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 10.0, 1.0, 3.0, 0.0, 0.0, 0.0, 0.025, 0.0, false, false, true, true);  // Case Top
-    pulse[4] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 4.0, 1.0, 3.0, 0.0, 0.0, 0.0, 0.025, 0.0, false, false, true, true);  // Motherboard
-    pulse[6] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(1.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 8.0, 1.0, 3.0, 0.0, 1.0, 1.0, 0.025, 0.0, false, false, true, true);  // Test 1
-    pulse[5] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(1.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 8.0, 1.0, 3.0, 0.0, 1.0, 1.0, 0.025, 0.0, false, false, true, false);  // Test 2
-    pulse[7] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 1.0, 1.0), vec3(0.0, 0.0, 0.0), 8.0, 0.0, 3.0, 0.0, 1.0, 1.0, 0.025, 0.0, false, false, true, true);  // Test 3
-    pulse[8] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 1.0, 1.0), vec3(0.0, 0.0, 0.0), 8.0, 0.0, 3.0, 0.0, 1.0, 1.0, 0.025, 0.0, false, false, true, false);  // Test 4
+    //                                                                                                             LEDs in |Pulse |Decay|Decay|Fade |Fade | Bright | Min    | Cufoff| BG + | Head+| Discrete  
+    //                             Pulse-color  |  Pause-color         | Fade-in color       | Background-color  | Display | Head | Exp | Lin | Exp | Lin | Cutoff | Bright | BG    | Pause| Fade | Output
+    pulse[0] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.05), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 5.0,     1.0,    3.0,  0.0,  0.0,  0.0,  0.025,   0.0,     false,  false, true,  true);    // Device 1
+    pulse[1] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.05), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 3.0,     1.0,    3.0,  0.0,  0.0,  0.0,  0.025,   0.0,     false,  false, true,  true);    // Device 2
+    pulse[2] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.1 ), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 3.0,     1.0,    3.0,  0.0,  0.0,  0.0,  0.025,   0.0,     false,  false, true,  true);    // Device 3
+    pulse[3] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0 ), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 14.0,    1.0,    3.0,  0.0,  0.0,  0.0,  0.025,   0.0,     false,  false, true,  true);    // Device 4
+    pulse[4] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0 ), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 10.0,    1.0,    3.0,  0.0,  0.0,  0.0,  0.025,   0.0,     false,  false, true,  true);    // Device 5
+    pulse[5] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0 ), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 8.0,     1.0,    3.0,  0.0,  0.0,  0.0,  0.025,   0.0,     false,  false, true,  true);    // Device 6
+    pulse[6] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0 ), vec3(0.5, 0.0, 0.0), vec3(0.0, 0.0, 0.0), 4.0,     0.0,    1.0,  0.0,  0.0,  10.0, 0.025,   0.0,     false,  false, false, true);    // Device 7
+    pulse[7] = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0 ), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 8.0,     1.0,    3.0,  0.0,  0.0,  0.0,  0.025,   0.0,     false,  false, true,  true);    // Device 8
     
+    /*
 
     // Alternative way to initialize a pulse:
     // Does the same thing as the examples above.
-    pulse[9].rgb_pulse = vec3(0.0, 1.0, 0.0);
-    pulse[9].rgb_pause = vec3(0.0, 0.0, 0.05);
-    pulse[9].rgb_fade_in = vec3(0.0, 0.0, 1.0);
-    pulse[9].rgb_background = vec3(0.0, 0.0, 0.0);
-    pulse[9].size_of_display_in_leds = 8.0; 
-    pulse[9].size_pulse_head_in_leds = 1.0;   
-    pulse[9].decay_speed_exponential = 3.0;  
-    pulse[9].decay_speed_linear = 0.0;   
-    pulse[9].fade_in_speed_exponential = 16.0;  
-    pulse[9].fade_in_speed_linear = 0.0;   
-    pulse[9].color_brightness_cutoff = 0.025;  
-    pulse[9].color_pulse_minimum_brightness_percent = 0.0;  
-    pulse[9].color_brightness_cutoff_includes_background_brightness = false;
-    pulse[9].color_combine_background_with_pause_color = false;   
-    pulse[9].color_combine_pulse_head_with_fade_in = true;   
-    pulse[9].display_discrete_led_output = true;
-
+    pulse[0].rgb_pulse = vec3(0.0, 1.0, 0.0);
+    pulse[0].rgb_pause = vec3(0.0, 0.0, 0.05);
+    pulse[0].rgb_fade_in = vec3(0.0, 0.0, 1.0);
+    pulse[0].rgb_background = vec3(0.0, 0.0, 0.0);
+    pulse[0].size_of_display_in_leds = 8.0; 
+    pulse[0].size_pulse_head_in_leds = 1.0;   
+    pulse[0].decay_speed_exponential = 3.0;  
+    pulse[0].decay_speed_linear = 0.0;   
+    pulse[0].fade_in_speed_exponential = 16.0;  
+    pulse[0].fade_in_speed_linear = 0.0;   
+    pulse[0].color_brightness_cutoff = 0.025;  
+    pulse[0].color_pulse_minimum_brightness_percent = 0.0;  
+    pulse[0].color_brightness_cutoff_includes_background_brightness = false;
+    pulse[0].color_combine_background_with_pause_color = false;   
+    pulse[0].color_combine_pulse_head_with_fade_in = true;   
+    pulse[0].display_discrete_led_output = true;
+    
+    */
 
 }
 //

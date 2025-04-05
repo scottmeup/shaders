@@ -18,8 +18,8 @@
 //
 const int size_of_display_in_columns = 11;    // how many parallel pulses to run
 const bool direction_movement_horizontal = false;
-const bool direction_movement_reversed = false;
-const float duration_of_pause = 3.0;   //  Time between the front of the pulse leaving the screen and the next pulse appearing 
+const bool direction_movement_reversed = true;
+const float duration_of_pause = 6.0;   //  Time between the front of the pulse leaving the screen and the next pulse appearing 
 const float duration_of_pulse = 3.0;    // Time taken for the front of the pulse to run across the display
 const float speed_global_modifier = 1.0;    // When set to 1.0, cycle will play at 1 second per unit of duration
 //
@@ -34,7 +34,6 @@ const bool debug_fade_in = false;                 // I think it looks better wit
 const bool debug_show_LED_map = false;
 const bool debug_show_distance_behind_pulse = false;
 const bool debug_show_distance_in_front_of_pulse = true;
-const float debug_dropoff_steepness = 2.0;
 
 struct Pulse_settings 
 {
@@ -67,17 +66,6 @@ void Initialize_pulse_settings_array(inout Pulse_settings pulse[size_of_display_
     // Use order of variables listed above in "struct Pulse_settings"
     //                                                                                                              LEDs in |Pulse |Decay|Decay|Fade |Fade | Bright | Min    | Cufoff| BG + | Head+| LED   | 1st+ 
     //                              Pulse-color  |  Pause-color         | Fade-in color       | Background-color  | Display | Head | Exp | Lin | Exp | Lin | Cutoff | Bright | BG    | Pause| Fade | Output| last
-    /*
-    pulse[0]  = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.05), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 5.0,      1.0,   3.0,  0.0,  0.0,  0.0,  0.025,   0.0,     false,  false, true,  true,   false);    // Mouse bottom
-    pulse[1]  = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.05), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 3.0,      1.0,   3.0,  0.0,  0.0,  0.0,  0.025,   0.0,     false,  false, true,  true,   false);    // Mouse scroll wheel
-    pulse[2]  = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.1 ), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 3.0,      1.0,   3.0,  0.0,  0.0,  0.0,  0.025,   0.0,     false,  false, true,  true,   false);    // Mouse logo
-    pulse[3]  = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0 ), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 14.0,     1.0,   3.0,  0.0,  0.0,  0.0,  0.025,   0.0,     false,  false, true,  true,   false);    // Case Front
-    pulse[4]  = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0 ), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 10.0,     1.0,   3.0,  0.0,  0.0,  0.0,  0.025,   0.0,     false,  false, true,  true,   false);    // Case Top
-    pulse[5]  = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0 ), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 8.0,      1.0,   3.0,  0.0,  0.0,  0.0,  0.025,   0.0,     false,  false, true,  true,   false);    // Motherboard - Z490D
-    pulse[6]  = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0 ), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 8.0,      1.0,   3.0,  0.0,  0.0,  0.0,  0.025,   0.0,     false,  false, true,  true,   false);    // Motherboard - Asus Aura
-    pulse[7]  = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0 ), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 4.0,      1.0,   3.0,  0.0,  1.0,  3.0,  0.025,   0.0,     false,  false, false,  true,   true );    // Graphics Card
-    pulse[8]  = Pulse_settings(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0 ), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 4.0,      1.0,   3.0,  0.0,  1.0,  3.0,  0.025,   0.0,     false,  false, true,  true,   true );    // Test
-    */
     pulse[0]  = Pulse_settings(vec3(1.0, 0.0, 0.0 ), vec3(0.0, 0.0, 0.05), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 5.0,      1.0,   3.0,  0.0,  0.0,   0.0,  0.025,   0.0,     false,  true, false,  true,   false);     // Device 1
     pulse[1]  = Pulse_settings(vec3(1.0, 0.75, 0.0), vec3(0.0, 0.0, 0.05), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 3.0,      1.0,   3.0,  0.0,  0.0,   0.0,  0.025,   0.0,     false,  true, false,  true,   false);     // Device 2
     pulse[2]  = Pulse_settings(vec3(1.0, 1.0, 0.0 ), vec3(0.0, 0.0, 0.1 ), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 3.0,      2.0,   3.0,  0.0,  0.0,   0.0,  0.025,   0.0,     false,  true, false,  true,   false);     // Device 3
@@ -123,11 +111,18 @@ void Initialize_pulse_settings_array(inout Pulse_settings pulse[size_of_display_
 // End User Config Section
 
 
-float restrict_value_from_0_to_1(float value){
-// Return a value between 0.0 and 1.0
-    value = min(value, 1.0);
-    value = max(value, 0.0);
-    return value;
+float restrict_float_from_0_to_1(float var){
+// Return a float with value between 0.0 and 1.0
+    var = min(var, 1.0);
+    var = max(var, 0.0);
+    return var;
+}
+
+vec3 restrict_vec3_from_0_to_1(vec3 var){
+// Return a 3D vector with values between 0.0 and 1.0
+    var = min(var, 1.0);
+    var = max(var, 0.0);
+    return var;
 }
 
 vec2 get_display_location_as_percent_of_display_size(vec2 fragCoord){
@@ -203,33 +198,17 @@ float get_distance_of_current_location_from_pulse_as_percent_of_display(float pu
 
 */
 
-float discrete_LED_output(float distance_of_current_location_behind_start_of_led_in_percent, float distance_of_current_location_behind_pulse_as_percent, float size_of_led_as_percent_of_display, float size_of_cycle_as_percent_of_screen){
-    
-    /*
-    if ( (distance_of_current_location_behind_pulse_as_percent + distance_of_current_location_behind_start_of_led_in_percent) > (size_of_cycle_as_percent_of_screen) ){
-        // Can probably replace the above logic with:
-        //distance_of_current_location_behind_pulse_as_percent = mod( (distance_of_current_location_behind_pulse_as_percent + distance_of_current_location_behind_start_of_led_in_percent), (size_of_cycle_as_percent_of_screen) );
+float discrete_LED_output(float distance_of_current_location_behind_start_of_led_as_percent_of_display, float distance_of_current_location_behind_pulse_as_percent, float size_of_led_as_percent_of_display, float size_of_cycle_as_percent_of_screen, bool ){
+// Align distance to the end of the LED segment that the pulse index is inside
 
-        // Black magic.
-        // As the distance from the current location from the index of the pulse location approaches the full cycle width,
-        // If adding the distance from the current location from the beginning position of it's LED is greater than one cycle width,
-        // Then subtract the distance of one full cycle width from the current location.
-        //
-        // Generate the entire first LED in the pulse as soon as the pulse index enters it's boundaries... I hope.
-        distance_of_current_location_behind_pulse_as_percent -= size_of_cycle_as_percent_of_screen;
+    // Keeps illuminated LED betweeen 0 and 1 LED width ahead of the pulse index with regard to the direction of movement
+    if(direction_movement_reversed){
+        distance_of_current_location_behind_start_of_led_as_percent_of_display -= size_of_led_as_percent_of_display;
     }
-    distance_of_current_location_behind_pulse_as_percent -= distance_of_current_location_behind_start_of_led_in_percent;
-    */
     
-    
-    // hmm....
-    // Select the entire LED that the pulse is inside by aligning distance to the start of the current LED
-    distance_of_current_location_behind_pulse_as_percent = mod( (distance_of_current_location_behind_pulse_as_percent + distance_of_current_location_behind_start_of_led_in_percent), (size_of_cycle_as_percent_of_screen) );
-    
-    // This part isn't working properly: individial LEDs have a brightness gradient within them at the moment. They shouldn't.
-    //distance_of_current_location_behind_pulse_as_percent += ( size_of_led_as_percent_of_display + distance_of_current_location_behind_start_of_led_in_percent);
-    //distance_of_current_location_behind_pulse_as_percent += distance_of_current_location_behind_start_of_led_in_percent;
-    //distance_of_current_location_behind_pulse_as_percent -= mod(distance_of_current_location_behind_pulse_as_percent, size_of_led_as_percent_of_display);
+    // Add current distance behind pulse to current distance behind start of LED and wrap around at the size of the whole cycle
+    distance_of_current_location_behind_pulse_as_percent = distance_of_current_location_behind_pulse_as_percent + distance_of_current_location_behind_start_of_led_as_percent_of_display;
+    distance_of_current_location_behind_pulse_as_percent = mod(distance_of_current_location_behind_pulse_as_percent, size_of_cycle_as_percent_of_screen);
     return distance_of_current_location_behind_pulse_as_percent;
 }
 
@@ -513,11 +492,11 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     
     
     float distance_of_current_location_behind_start_of_led_as_percent_of_display = mod(current_location_on_y_axis_of_display_as_percent_of_display, size_of_led_as_percent_of_display);
- 
+
 
     // Call discrete LED output method
     if(display_discrete_led_output){
-        distance_of_current_location_behind_pulse_as_percent_of_display = discrete_LED_output(distance_of_current_location_behind_start_of_led_as_percent_of_display, distance_of_current_location_behind_pulse_as_percent_of_display, size_of_led_as_percent_of_display, size_of_cycle_as_percent_of_display);
+        distance_of_current_location_behind_pulse_as_percent_of_display = discrete_LED_output(distance_of_current_location_behind_start_of_led_as_percent_of_display, distance_of_current_location_behind_pulse_as_percent_of_display, size_of_led_as_percent_of_display, size_of_cycle_as_percent_of_display, direction_movement_reversed);
     }
     distance_of_current_location_in_front_of_pulse_as_percent_of_display = size_of_cycle_as_percent_of_display - distance_of_current_location_behind_pulse_as_percent_of_display;
 
@@ -525,8 +504,8 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     bool screen_position_right_or_above_pulse = direction_movement_reversed;
     float decay_factor = generate_pulse_decay( distance_of_current_location_behind_pulse_as_percent_of_display, pulse_location_as_percent_of_display, size_of_cycle_as_percent_of_display, pulse, screen_position_left_or_below_pulse);
     float fade_in_factor = generate_pulse_decay( (current_location_on_y_axis_of_display_as_percent_of_display ), pulse_location_as_percent_of_display, size_of_cycle_as_percent_of_display, pulse, screen_position_right_or_above_pulse);
-    decay_factor = restrict_value_from_0_to_1(decay_factor);
-    fade_in_factor = restrict_value_from_0_to_1(fade_in_factor);
+    decay_factor = restrict_float_from_0_to_1(decay_factor);
+    fade_in_factor = restrict_float_from_0_to_1(fade_in_factor);
     
     //float fade_in_factor = generate_fade_in(current_location_on_y_axis_of_display_as_percent_of_display, pulse_location_as_percent_of_display, size_of_cycle_as_percent_of_display, pulse[index_current_pulse]);
     
@@ -539,27 +518,33 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     if(debug_show_distance_behind_pulse){
         // Show distance on screen behind pulse location
         // Brighter = Closer
-        // Darker = further away
-        display_output_vector = ( 1.0 - (distance_of_current_location_behind_pulse_as_percent_of_display / size_of_cycle_as_percent_of_display) ) * rgb_pulse;
+        // Darker = Further away
+        display_output_vector = ( 1.0 - (distance_of_current_location_behind_pulse_as_percent_of_display ) ) * rgb_pulse;
     }
     
     
     if(debug_show_distance_in_front_of_pulse){
         // Show distance on screen behind pulse location
         // Brighter = Closer
-        // Darker = further away
-        display_output_vector =  ( 1.0 - (distance_of_current_location_in_front_of_pulse_as_percent_of_display / size_of_cycle_as_percent_of_display) ) * rgb_pulse;
+        // Darker = Further away
+        display_output_vector =  ( 1.0 - (distance_of_current_location_in_front_of_pulse_as_percent_of_display ) ) * rgb_pulse;
     }
     
     if(debug_show_distance_behind_pulse && debug_show_distance_in_front_of_pulse){
-        //display_output_vector = distance_of_current_location_in_front_of_pulse_as_percent_of_display
+        vec3 backward_output_vector = ( 1.0 - (distance_of_current_location_behind_pulse_as_percent_of_display ) ) * rgb_pulse;
+        vec3 forward_output_vector =  ( 1.0 - (distance_of_current_location_in_front_of_pulse_as_percent_of_display ) ) * rgb_pulse;
+        backward_output_vector = restrict_vec3_from_0_to_1(backward_output_vector);
+        forward_output_vector = restrict_vec3_from_0_to_1(forward_output_vector);
+        display_output_vector = backward_output_vector + forward_output_vector;
+        //display_output_vector = forward_output_vector;
     }
     
     
     if(debug_show_LED_map){
         // Show distance on screen from beginning of the current LED element
-        // Darker = closer
-        display_output_vector = distance_of_current_location_behind_start_of_led_as_percent_of_display * rgb_pulse * size_of_display_in_leds;
+        // Brighter = Closer
+        // Darker = Further away
+        display_output_vector = ( 1.0 - distance_of_current_location_behind_start_of_led_as_percent_of_display * size_of_display_in_leds ) * rgb_pulse;
     }
 
     // Display final output

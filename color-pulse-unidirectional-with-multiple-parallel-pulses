@@ -19,7 +19,7 @@
 const int size_of_display_in_columns = 11;    // how many parallel pulses to run
 const bool direction_movement_horizontal = false;
 const bool direction_movement_reversed = false;
-const float duration_of_pause = 3.0;   //  Time between the front of the pulse leaving the screen and the next pulse appearing 
+const float duration_of_pause = 5.0;   //  Time between the front of the pulse leaving the screen and the next pulse appearing 
 const float duration_of_pulse = 3.0;    // Time taken for the front of the pulse to run across the display
 const float speed_global_modifier = 1.0;    // When set to 1.0, cycle will play at 1 second per unit of duration
 //
@@ -32,7 +32,7 @@ const vec3 ones3d = vec3(1.0, 1.0, 1.0);
 const vec3 zeros3d = vec3(0.0, 0.0, 0.0);
 const bool debug_fade_in = false;                 // I think it looks better with this set to false
 const bool debug_show_LED_map = false;
-const bool debug_show_distance_behind_pulse = true;
+const bool debug_show_distance_behind_pulse = false;
 const bool debug_show_distance_in_front_of_pulse = false;
 
 struct Pulse_settings 
@@ -264,9 +264,10 @@ vec3 generate_fade_in(float current_location_on_y_axis_of_display_as_percent_of_
 */
 
 
-float generate_pulse_decay(float distance_of_current_location_behind_pulse_as_percent_of_display, float pulse_location_as_percent_of_display, float size_of_cycle_as_percent_of_display, Pulse_settings pulse){
+float generate_pulse_decay(float distance_of_current_location_behind_pulse_as_percent_of_display, float pulse_location_as_percent_of_display, float size_of_cycle_as_percent_of_display, float offset_from_pulse_index, Pulse_settings pulse){
     // Generate decay pulse
-
+    
+    distance_of_current_location_behind_pulse_as_percent_of_display -= offset_from_pulse_index;
     float decay_speed_exponential = pulse.decay_speed_exponential;
     float decay_speed_linear = pulse.decay_speed_linear;
     float size_of_display_in_leds = pulse.size_of_display_in_leds;
@@ -333,6 +334,17 @@ float generate_pulse_decay(float distance_of_current_location_behind_pulse_as_pe
 }
 
 
+float generate_head(float distance_of_current_location_behind_pulse_as_percent_of_display, Pulse_settings pulse){
+    float size_of_display_in_leds = pulse.size_of_display_in_leds;
+    float size_pulse_head_in_leds = pulse.size_pulse_head_in_leds;
+    float size_of_led_as_percent_of_display = (1.0 / size_of_display_in_leds);
+    float size_pulse_head_as_percent_of_display = size_of_led_as_percent_of_display * size_pulse_head_in_leds;
+    float head_factor = 0.0;
+    if(distance_of_current_location_behind_pulse_as_percent_of_display < size_pulse_head_as_percent_of_display){
+        head_factor = 1.0;
+    }
+    return head_factor;
+}
 
 vec3 apply_minimum_brightness(vec3 color_at_current_location, Pulse_settings pulse){
     //enforce minimum brightness setting for pulse - do not decay below this intensity
@@ -478,7 +490,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     
 
     
-    vec3 display_output_vector;
+    vec3 display_output_vector = vec3(0.0, 0.0, 0.0);
     
     if(direction_movement_reversed){
         distance_of_current_location_in_front_of_pulse_as_percent_of_display = mod( (pulse_location_as_percent_of_display - current_location_on_y_axis_of_display_as_percent_of_display), size_of_cycle_as_percent_of_display);
@@ -506,15 +518,18 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     }
     */
     
+    // Copy some variables from the current pulse array into local scope
     Pulse_settings pulse = pulse_array[index_current_pulse];
     float size_of_display_in_leds = pulse.size_of_display_in_leds;
     bool display_discrete_led_output = pulse.display_discrete_led_output;
     vec3 rgb_pulse = pulse.rgb_pulse;
-
-    
+    float size_pulse_head_in_leds = pulse.size_pulse_head_in_leds;
+    // Set up some variables related to display
     float size_of_led_as_percent_of_display = (1.0 / size_of_display_in_leds);
-    
-    
+    float size_pulse_head_as_percent_of_display = size_of_led_as_percent_of_display * size_pulse_head_in_leds;
+
+    // Generate LED map and distance from each screen location behind the start of the LED it is a part of,
+    // adjusted for the direction of movement
     float distance_of_current_location_behind_start_of_led_as_percent_of_display = mod(current_location_on_y_axis_of_display_as_percent_of_display, size_of_led_as_percent_of_display);
     if(direction_movement_reversed){
             distance_of_current_location_behind_start_of_led_as_percent_of_display = invert_value(distance_of_current_location_behind_start_of_led_as_percent_of_display, size_of_led_as_percent_of_display);
@@ -526,14 +541,16 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     }
     distance_of_current_location_in_front_of_pulse_as_percent_of_display = invert_value(distance_of_current_location_behind_pulse_as_percent_of_display, size_of_cycle_as_percent_of_display);
 
-
+    // Generate head
+    float head_factor = generate_head(distance_of_current_location_behind_pulse_as_percent_of_display, pulse);
     
     
-    //float decay_factor = generate_pulse_decay( distance_of_current_location_behind_pulse_as_percent_of_display, pulse_location_as_percent_of_display, size_of_cycle_as_percent_of_display, pulse, screen_position_left_or_below_pulse);
-    float decay_factor = generate_pulse_decay( distance_of_current_location_behind_pulse_as_percent_of_display, pulse_location_as_percent_of_display, size_of_cycle_as_percent_of_display, pulse);
+    float decay_offset = size_pulse_head_as_percent_of_display;
+    float fade_in_offset = 0.0;
+    float decay_factor = generate_pulse_decay( distance_of_current_location_behind_pulse_as_percent_of_display, pulse_location_as_percent_of_display, size_of_cycle_as_percent_of_display, decay_offset, pulse);
+    float fade_in_factor = generate_pulse_decay( (distance_of_current_location_in_front_of_pulse_as_percent_of_display ), pulse_location_as_percent_of_display, size_of_cycle_as_percent_of_display, fade_in_offset, pulse);
     
-    
-    float fade_in_factor = generate_pulse_decay( (current_location_on_y_axis_of_display_as_percent_of_display ), pulse_location_as_percent_of_display, size_of_cycle_as_percent_of_display, pulse);
+    // Keep values in a sensible range: between 0.0 and 1.0
     decay_factor = restrict_float_from_0_to_1(decay_factor);
     fade_in_factor = restrict_float_from_0_to_1(fade_in_factor);
     
@@ -544,6 +561,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     //display_output_vector = fade_in_factor * rgb_pulse;
     //display_output_vector = (fade_in_factor + decay_factor) * rgb_pulse;
     //display_output_vector = rgb_pulse;
+    display_output_vector = (head_factor + decay_factor) * rgb_pulse;
     
     if(debug_show_distance_behind_pulse){
         // Show distance on screen behind pulse location

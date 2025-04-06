@@ -129,6 +129,17 @@ vec3 restrict_vec3_from_0_to_1(vec3 var){
     return var;
 }
 
+vec2 get_decay_and_fade_offsets(float head_buffer_leds, float head_buffer_alignment, float size_of_led_as_percent_of_display, float size_pulse_head_in_leds){
+    // Alighment & buffer space between full-intensity section and fade-in / decay
+    // head_buffer_leds = 0.0, head_buffer_alignment = 0.5 : full illumination to exactly 1 LED element at a time and aligns LEDs to index of pulse
+    // 
+    // Probably best managed as part of Pulse_settings or with additional logic: doesn't always play nice with continuous display mode
+    vec2 offset;
+    offset.x = ((( head_buffer_leds - 0.5 ) + size_pulse_head_in_leds) * size_of_led_as_percent_of_display) * (1.5 - head_buffer_alignment);
+    offset.y = (((  head_buffer_leds - 0.5 )+ size_pulse_head_in_leds) * size_of_led_as_percent_of_display * (head_buffer_alignment - 0.5 )) ;
+    return offset;
+}
+
 vec2 get_display_location_as_percent_of_display_size(vec2 fragCoord){
     // Generate (x,y) coordinates of display location adjusted for horizontal / vertical direction of movement
     float size_display_width_in_pixels;
@@ -545,14 +556,21 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     float head_factor = generate_head(distance_of_current_location_behind_pulse_as_percent_of_display, pulse);
     
     
-    float decay_offset = size_pulse_head_as_percent_of_display;
-    float fade_in_offset = 0.0;
-    float decay_factor = generate_pulse_decay( distance_of_current_location_behind_pulse_as_percent_of_display, pulse_location_as_percent_of_display, size_of_cycle_as_percent_of_display, decay_offset, pulse);
-    float fade_in_factor = generate_pulse_decay( (distance_of_current_location_in_front_of_pulse_as_percent_of_display ), pulse_location_as_percent_of_display, size_of_cycle_as_percent_of_display, fade_in_offset, pulse);
+    // Generate offsets of decay from head location
+    float head_buffer_leds = 0.0;    // 0.0 results in full illumination of exactly 1 LED at a time
+    float head_buffer_alignment = 0.5;   // 0 to 1.0, 0.0 = Rear, 1.0 = Front, 0.5 = Mid
+    vec2 decay_and_fade_offset = get_decay_and_fade_offsets(head_buffer_leds, head_buffer_alignment, size_of_led_as_percent_of_display, size_pulse_head_in_leds);
+    
+
+    
+    // Generate tail + fade-in
+    float decay_factor =   generate_pulse_decay( (distance_of_current_location_behind_pulse_as_percent_of_display) - decay_and_fade_offset.x, pulse_location_as_percent_of_display, size_of_cycle_as_percent_of_display, decay_and_fade_offset.x, pulse);
+    float fade_in_factor = generate_pulse_decay( distance_of_current_location_in_front_of_pulse_as_percent_of_display, pulse_location_as_percent_of_display, size_of_cycle_as_percent_of_display, decay_and_fade_offset.y, pulse);
     
     // Keep values in a sensible range: between 0.0 and 1.0
     decay_factor = restrict_float_from_0_to_1(decay_factor);
     fade_in_factor = restrict_float_from_0_to_1(fade_in_factor);
+    head_factor = restrict_float_from_0_to_1(fade_in_factor);
     
     //float fade_in_factor = generate_fade_in(current_location_on_y_axis_of_display_as_percent_of_display, pulse_location_as_percent_of_display, size_of_cycle_as_percent_of_display, pulse[index_current_pulse]);
     
@@ -561,7 +579,29 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     //display_output_vector = fade_in_factor * rgb_pulse;
     //display_output_vector = (fade_in_factor + decay_factor) * rgb_pulse;
     //display_output_vector = rgb_pulse;
-    display_output_vector = (head_factor + decay_factor) * rgb_pulse;
+    
+
+    display_output_vector = (fade_in_factor + head_factor + decay_factor) * rgb_pulse;
+    display_output_vector = (fade_in_factor + decay_factor) * rgb_pulse;
+
+    
+    // Display head only if location is +- 1/2 the size of the head from the pulse index
+    //if(distance_of_current_location_behind_pulse_as_percent_of_display < (size_pulse_head_as_percent_of_display / 2.0) || distance_of_current_location_in_front_of_pulse_as_percent_of_display < (size_pulse_head_as_percent_of_display / 2.0)){
+    if(distance_of_current_location_behind_pulse_as_percent_of_display < (size_pulse_head_as_percent_of_display )){
+        display_output_vector = rgb_pulse;
+    }
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    // Debug section
+    
     
     if(debug_show_distance_behind_pulse){
         // Show distance on screen behind pulse location

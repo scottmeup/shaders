@@ -35,6 +35,14 @@ const bool debug_show_LED_map = false;
 const bool debug_show_distance_behind_pulse = false;
 const bool debug_show_distance_in_front_of_pulse = false;
 
+
+// Pi, the ratio of a circle's circumference to its diameter.
+const float M_PI = 3.14159265358979323846264338327950288;
+
+// 1 degree in radians
+const float degree = 180.0/M_PI;
+
+
 struct Pulse_settings 
 {
     vec3 rgb_pulse;    // (R, G, B) Color for pulse
@@ -138,6 +146,29 @@ vec2 get_decay_and_fade_offsets(float head_buffer_leds, float head_buffer_alignm
     offset.x = ((( head_buffer_leds - 0.5 ) + size_pulse_head_in_leds) * size_of_led_as_percent_of_display) * (1.5 - head_buffer_alignment);
     offset.y = (((  head_buffer_leds - 0.5 )+ size_pulse_head_in_leds) * size_of_led_as_percent_of_display * (head_buffer_alignment - 0.5 )) ;
     return offset;
+}
+
+
+float get_led_offset_as_percent_of_display(float offset_in_leds, float size_of_led_as_percent_of_display){
+    // Return the display distance for a given number of LED elements as a percentage of the display size
+    float offset = offset_in_leds * size_of_led_as_percent_of_display;
+    return offset;
+}
+
+vec2 get_distance_of_current_location_from_pulse_as_percent_of_display(float pulse_location_as_percent_of_display, float current_location_on_y_axis_of_display_as_percent_of_display, float size_of_cycle_as_percent_of_display){
+    // Get the the distance of the current location behind (vec2.x) and in front of (vec2.y) the pulse index
+    
+    float distance_of_current_location_in_front_of_pulse_as_percent_of_display;
+    float distance_of_current_location_behind_pulse_as_percent_of_display;
+    if(direction_movement_reversed){
+        distance_of_current_location_in_front_of_pulse_as_percent_of_display = mod( (pulse_location_as_percent_of_display - current_location_on_y_axis_of_display_as_percent_of_display), size_of_cycle_as_percent_of_display);
+        distance_of_current_location_behind_pulse_as_percent_of_display = invert_value(distance_of_current_location_in_front_of_pulse_as_percent_of_display, size_of_cycle_as_percent_of_display);
+    }
+    else{
+        distance_of_current_location_behind_pulse_as_percent_of_display = mod( (pulse_location_as_percent_of_display - current_location_on_y_axis_of_display_as_percent_of_display), size_of_cycle_as_percent_of_display);
+        distance_of_current_location_in_front_of_pulse_as_percent_of_display = invert_value(distance_of_current_location_behind_pulse_as_percent_of_display, size_of_cycle_as_percent_of_display);
+    }
+    return vec2(distance_of_current_location_behind_pulse_as_percent_of_display, distance_of_current_location_in_front_of_pulse_as_percent_of_display);
 }
 
 vec2 get_display_location_as_percent_of_display_size(vec2 fragCoord){
@@ -345,13 +376,35 @@ float generate_pulse_decay(float distance_of_current_location_behind_pulse_as_pe
 }
 
 
-float generate_head(float distance_of_current_location_behind_pulse_as_percent_of_display, Pulse_settings pulse){
+float generate_head(float pulse_location_as_percent_of_display, float current_location_on_y_axis_of_display_as_percent_of_display, float distance_of_current_location_behind_pulse_as_percent_of_display, float distance_of_current_location_in_front_of_pulse_as_percent_of_display,  float head_offset_as_percent_of_display, Pulse_settings pulse){
     float size_of_display_in_leds = pulse.size_of_display_in_leds;
     float size_pulse_head_in_leds = pulse.size_pulse_head_in_leds;
     float size_of_led_as_percent_of_display = (1.0 / size_of_display_in_leds);
     float size_pulse_head_as_percent_of_display = size_of_led_as_percent_of_display * size_pulse_head_in_leds;
     float head_factor = 0.0;
-    if(distance_of_current_location_behind_pulse_as_percent_of_display < size_pulse_head_as_percent_of_display){
+    // if distance < size + offset
+        // if distance < offset
+            // question mark, question mark...
+    /*        
+    // working section
+    if( (distance_of_current_location_behind_pulse_as_percent_of_display )  < ( size_pulse_head_as_percent_of_display  ) ){
+        head_factor = 1.0;
+    }
+    */
+    
+    /*
+    // Almost works but gets cutoff when moving ahead of pulse
+    if (distance_of_current_location_behind_pulse_as_percent_of_display < (size_pulse_head_as_percent_of_display + head_offset_as_percent_of_display)){ // Trailing edge
+        if(distance_of_current_location_behind_pulse_as_percent_of_display > head_offset_as_percent_of_display){ // leading edge
+            head_factor = 1.0;
+        }
+
+    }
+    */
+    
+    
+    // Doesn't like to cross the pulse
+    if ( (distance_of_current_location_behind_pulse_as_percent_of_display < ((size_pulse_head_as_percent_of_display + head_offset_as_percent_of_display) / 2.0 )) || (distance_of_current_location_in_front_of_pulse_as_percent_of_display < ( (size_pulse_head_as_percent_of_display - head_offset_as_percent_of_display) / 2.0 ))){
         head_factor = 1.0;
     }
     return head_factor;
@@ -476,6 +529,23 @@ vec3 generate_rgb_output_column(Pulse_settings pulse, vec2 screen_location_adjus
 }
 */
 
+vec3 get_waste_of_time_vector(vec2 screen_location_adjusted_for_alignment_as_percent_of_display){
+    // just messing around
+    float circle_in_radians = 2.0 * M_PI;
+    float space_modifier = 10.0;
+    float speed_modifier = -1.0;
+    float time = iTime * speed_modifier;
+    float location_modifier = (screen_location_adjusted_for_alignment_as_percent_of_display.x + screen_location_adjusted_for_alignment_as_percent_of_display.y) / 2.0;
+    float degree_time = mod( (time ), circle_in_radians);
+    float degree_time_plus_1_over_3 = mod( (time ) + (circle_in_radians / 3.0), circle_in_radians);
+    float degree_time_plus_2_over_3 = mod( (time ) + (2.0 * (circle_in_radians/3.0)), circle_in_radians);
+    float location_plus_degree_0 = mod( (degree_time + (space_modifier * location_modifier) ), 360.0);
+    float location_plus_degree_1 = mod( (degree_time_plus_1_over_3 + (space_modifier * location_modifier) ), 360.0);
+    float location_plus_degree_2 = mod( (degree_time_plus_2_over_3 + (space_modifier * location_modifier) ), 360.0);
+    vec3 waste_of_time_vector = vec3(sin(location_plus_degree_0), sin(location_plus_degree_1), sin(location_plus_degree_2));
+    return waste_of_time_vector;
+}
+
 
 void mainImage( out vec4 fragColor, in vec2 fragCoord )
 {
@@ -500,17 +570,16 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     //float distance_of_current_location_in_front_of_pulse_as_percent_of_display = size_of_cycle_as_percent_of_display - distance_of_current_location_behind_pulse_as_percent_of_display;
     
 
+    vec3 display_output_vector;
     
-    vec3 display_output_vector = vec3(0.0, 0.0, 0.0);
-    
-    if(direction_movement_reversed){
-        distance_of_current_location_in_front_of_pulse_as_percent_of_display = mod( (pulse_location_as_percent_of_display - current_location_on_y_axis_of_display_as_percent_of_display), size_of_cycle_as_percent_of_display);
-        distance_of_current_location_behind_pulse_as_percent_of_display = invert_value(distance_of_current_location_in_front_of_pulse_as_percent_of_display, size_of_cycle_as_percent_of_display);
-    }
-    else{
-        distance_of_current_location_behind_pulse_as_percent_of_display = mod( (pulse_location_as_percent_of_display - current_location_on_y_axis_of_display_as_percent_of_display), size_of_cycle_as_percent_of_display);
-        distance_of_current_location_in_front_of_pulse_as_percent_of_display = invert_value(distance_of_current_location_behind_pulse_as_percent_of_display, size_of_cycle_as_percent_of_display);
-    }
+    //////
+    //vec3 waste_of_time_vector = get_waste_of_time_vector(screen_location_adjusted_for_alignment_as_percent_of_display);
+    //display_output_vector = waste_of_time_vector;
+    //////
+
+    vec2 distance_from_pulse = get_distance_of_current_location_from_pulse_as_percent_of_display(pulse_location_as_percent_of_display, current_location_on_y_axis_of_display_as_percent_of_display, size_of_cycle_as_percent_of_display);
+    distance_of_current_location_behind_pulse_as_percent_of_display = distance_from_pulse.x;
+    distance_of_current_location_in_front_of_pulse_as_percent_of_display = distance_from_pulse.y;
     
     
     // Calculate the column index of the current screen location
@@ -518,23 +587,13 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     
     
     
-    /*
-    // Set up distance of screen location from beginning of LED
-    float distance_of_current_screen_position_behind_start_of_led_in_percent;
-    if(direction_movement_reversed){
-        distance_of_current_screen_position_behind_start_of_led_in_percent = size_of_current_pulse_led_in_screen_percent - mod(current_location_on_y_axis_of_display_as_percent_of_display, size_of_current_pulse_led_in_screen_percent);
-    }
-    else{
-        distance_of_current_screen_position_behind_start_of_led_in_percent = mod(current_location_on_y_axis_of_display_as_percent_of_display, size_of_current_pulse_led_in_screen_percent);
-    }
-    */
-    
     // Copy some variables from the current pulse array into local scope
     Pulse_settings pulse = pulse_array[index_current_pulse];
     float size_of_display_in_leds = pulse.size_of_display_in_leds;
     bool display_discrete_led_output = pulse.display_discrete_led_output;
     vec3 rgb_pulse = pulse.rgb_pulse;
     float size_pulse_head_in_leds = pulse.size_pulse_head_in_leds;
+    
     // Set up some variables related to display
     float size_of_led_as_percent_of_display = (1.0 / size_of_display_in_leds);
     float size_pulse_head_as_percent_of_display = size_of_led_as_percent_of_display * size_pulse_head_in_leds;
@@ -552,15 +611,25 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     }
     distance_of_current_location_in_front_of_pulse_as_percent_of_display = invert_value(distance_of_current_location_behind_pulse_as_percent_of_display, size_of_cycle_as_percent_of_display);
 
-    // Generate head
-    float head_factor = generate_head(distance_of_current_location_behind_pulse_as_percent_of_display, pulse);
-    
+   
     
     // Generate offsets of decay from head location
-    float head_buffer_leds = 0.0;    // 0.0 results in full illumination of exactly 1 LED at a time
+    // Note: testing was done with decay + fade_in only, i beleive head generation was off
+    float head_buffer_leds = 0.0;    // 0.0 results in full illumination of exactly 1 LED at a time with fade_in + decay pulse
     float head_buffer_alignment = 0.5;   // 0 to 1.0, 0.0 = Rear, 1.0 = Front, 0.5 = Mid
     vec2 decay_and_fade_offset = get_decay_and_fade_offsets(head_buffer_leds, head_buffer_alignment, size_of_led_as_percent_of_display, size_pulse_head_in_leds);
     
+
+    // Shift head as a percent of a full LED
+    float head_offset;
+    
+    if(!display_discrete_led_output){
+        head_offset = get_led_offset_as_percent_of_display(1.0, size_of_led_as_percent_of_display);
+    }
+    
+ 
+    // Generate head
+    float head_factor = generate_head(pulse_location_as_percent_of_display, current_location_on_y_axis_of_display_as_percent_of_display, distance_of_current_location_behind_pulse_as_percent_of_display, distance_of_current_location_in_front_of_pulse_as_percent_of_display, head_offset, pulse);
 
     
     // Generate tail + fade-in
@@ -570,26 +639,30 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     // Keep values in a sensible range: between 0.0 and 1.0
     decay_factor = restrict_float_from_0_to_1(decay_factor);
     fade_in_factor = restrict_float_from_0_to_1(fade_in_factor);
-    head_factor = restrict_float_from_0_to_1(fade_in_factor);
+    head_factor = restrict_float_from_0_to_1(head_factor);
     
     //float fade_in_factor = generate_fade_in(current_location_on_y_axis_of_display_as_percent_of_display, pulse_location_as_percent_of_display, size_of_cycle_as_percent_of_display, pulse[index_current_pulse]);
     
     // Call function to generate column output
+    display_output_vector = head_factor * rgb_pulse;
     //display_output_vector = decay_factor * rgb_pulse;
-    //display_output_vector = fade_in_factor * rgb_pulse;
+    //display_output_vector = fade_in_factor * fade_in_pulse;
     //display_output_vector = (fade_in_factor + decay_factor) * rgb_pulse;
     //display_output_vector = rgb_pulse;
     
 
-    display_output_vector = (fade_in_factor + head_factor + decay_factor) * rgb_pulse;
-    display_output_vector = (fade_in_factor + decay_factor) * rgb_pulse;
+    //display_output_vector = (fade_in_factor + head_factor + decay_factor) * rgb_pulse;
+    //display_output_vector = (fade_in_factor + decay_factor) * rgb_pulse;
 
     
     // Display head only if location is +- 1/2 the size of the head from the pulse index
     //if(distance_of_current_location_behind_pulse_as_percent_of_display < (size_pulse_head_as_percent_of_display / 2.0) || distance_of_current_location_in_front_of_pulse_as_percent_of_display < (size_pulse_head_as_percent_of_display / 2.0)){
+    
+    /*
     if(distance_of_current_location_behind_pulse_as_percent_of_display < (size_pulse_head_as_percent_of_display )){
         display_output_vector = rgb_pulse;
     }
+    */
     
     
     
@@ -634,6 +707,8 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         // Darker = Further away
         display_output_vector = ( 1.0 - distance_of_current_location_behind_start_of_led_as_percent_of_display * size_of_display_in_leds ) * rgb_pulse;
     }
+    
+    //display_output_vector = waste_of_time_vector;
 
     // Display final output
     fragColor = vec4(display_output_vector.x, display_output_vector.y, display_output_vector.z, 1.0);

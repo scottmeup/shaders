@@ -382,31 +382,25 @@ float generate_head(float pulse_location_as_percent_of_display, float current_lo
     float size_of_led_as_percent_of_display = (1.0 / size_of_display_in_leds);
     float size_pulse_head_as_percent_of_display = size_of_led_as_percent_of_display * size_pulse_head_in_leds;
     float head_factor = 0.0;
-    // if distance < size + offset
-        // if distance < offset
-            // question mark, question mark...
-    /*        
-    // working section
-    if( (distance_of_current_location_behind_pulse_as_percent_of_display )  < ( size_pulse_head_as_percent_of_display  ) ){
-        head_factor = 1.0;
-    }
-    */
-    
-    /*
-    // Almost works but gets cutoff when moving ahead of pulse
-    if (distance_of_current_location_behind_pulse_as_percent_of_display < (size_pulse_head_as_percent_of_display + head_offset_as_percent_of_display)){ // Trailing edge
-        if(distance_of_current_location_behind_pulse_as_percent_of_display > head_offset_as_percent_of_display){ // leading edge
-            head_factor = 1.0;
-        }
 
+    
+    // This kind of works but the variable names need fixing
+    // Also need to account for wrap around - setting the head in front of the pulse results in it popping into existance when the pulse does
+    bool below_or_left = false;
+    bool above_or_right = false;
+    if(current_location_on_y_axis_of_display_as_percent_of_display < ( pulse_location_as_percent_of_display - head_offset_as_percent_of_display - (size_pulse_head_as_percent_of_display/2.0))){
+        //head_factor = 1.0;
+        below_or_left = true;
     }
-    */
-    
-    
-    // Doesn't like to cross the pulse
-    if ( (distance_of_current_location_behind_pulse_as_percent_of_display < ((size_pulse_head_as_percent_of_display + head_offset_as_percent_of_display) / 2.0 )) || (distance_of_current_location_in_front_of_pulse_as_percent_of_display < ( (size_pulse_head_as_percent_of_display - head_offset_as_percent_of_display) / 2.0 ))){
+    if(current_location_on_y_axis_of_display_as_percent_of_display > ( pulse_location_as_percent_of_display - head_offset_as_percent_of_display + (size_pulse_head_as_percent_of_display/2.0))){
+        //head_factor = 1.0;
+        above_or_right = true;
+    }
+    if(!below_or_left && !above_or_right){
         head_factor = 1.0;
     }
+    
+    
     return head_factor;
 }
 
@@ -624,7 +618,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     float head_offset;
     
     if(!display_discrete_led_output){
-        head_offset = get_led_offset_as_percent_of_display(1.0, size_of_led_as_percent_of_display);
+        head_offset = get_led_offset_as_percent_of_display(-1.0, size_of_led_as_percent_of_display);
     }
     
  

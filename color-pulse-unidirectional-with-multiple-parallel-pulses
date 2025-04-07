@@ -137,6 +137,12 @@ vec3 restrict_vec3_from_0_to_1(vec3 var){
     return var;
 }
 
+float distance_with_mod(float position_initial, float position_final, float size_of_space){
+    // Always returns a positive value: the remainder of (pos_final - pos_initial) / size_of_space
+    return mod((position_final - position_initial), size_of_space);
+}
+
+
 vec2 get_decay_and_fade_offsets(float head_buffer_leds, float head_buffer_alignment, float size_of_led_as_percent_of_display, float size_pulse_head_in_leds){
     // Alighment & buffer space between full-intensity section and fade-in / decay
     // head_buffer_leds = 0.0, head_buffer_alignment = 0.5 : full illumination to exactly 1 LED element at a time and aligns LEDs to index of pulse
@@ -376,31 +382,141 @@ float generate_pulse_decay(float distance_of_current_location_behind_pulse_as_pe
 }
 
 
-float generate_head(float pulse_location_as_percent_of_display, float current_location_on_y_axis_of_display_as_percent_of_display, float distance_of_current_location_behind_pulse_as_percent_of_display, float distance_of_current_location_in_front_of_pulse_as_percent_of_display,  float head_offset_as_percent_of_display, Pulse_settings pulse){
+float generate_head(float pulse_location_as_percent_of_display, float current_location_on_y_axis_of_display_as_percent_of_display, float distance_of_current_location_behind_pulse_as_percent_of_display, float distance_of_current_location_in_front_of_pulse_as_percent_of_display, float head_offset_as_percent_of_display, Pulse_settings pulse){
     float size_of_display_in_leds = pulse.size_of_display_in_leds;
     float size_pulse_head_in_leds = pulse.size_pulse_head_in_leds;
     float size_of_led_as_percent_of_display = (1.0 / size_of_display_in_leds);
     float size_pulse_head_as_percent_of_display = size_of_led_as_percent_of_display * size_pulse_head_in_leds;
     float head_factor = 0.0;
-
-    
-    // This kind of works but the variable names need fixing
-    // Also need to account for wrap around - setting the head in front of the pulse results in it popping into existance when the pulse does
+    ////
     bool below_or_left = false;
     bool above_or_right = false;
-    if(current_location_on_y_axis_of_display_as_percent_of_display < ( pulse_location_as_percent_of_display - head_offset_as_percent_of_display - (size_pulse_head_as_percent_of_display/2.0))){
-        //head_factor = 1.0;
-        below_or_left = true;
-    }
-    if(current_location_on_y_axis_of_display_as_percent_of_display > ( pulse_location_as_percent_of_display - head_offset_as_percent_of_display + (size_pulse_head_as_percent_of_display/2.0))){
-        //head_factor = 1.0;
+    float size_of_cycle_as_percent_of_display = (duration_of_pause + duration_of_pulse) / duration_of_pulse;
+
+    
+    /*
+    // Working, apart from wrap around to position 0
+
+    if(current_location_on_y_axis_of_display_as_percent_of_display > ( pulse_location_as_percent_of_display - head_offset_as_percent_of_display - (size_pulse_head_as_percent_of_display/2.0))){
         above_or_right = true;
     }
-    if(!below_or_left && !above_or_right){
+    if(current_location_on_y_axis_of_display_as_percent_of_display < ( pulse_location_as_percent_of_display - head_offset_as_percent_of_display + (size_pulse_head_as_percent_of_display/2.0))){
+        below_or_left = true;
+    }
+    if(below_or_left && above_or_right){
+        head_factor = 1.0;
+    }
+    */
+    
+    
+    /*
+    // Original behaviour: continuous head is aligned completely behind pulse index 
+    if(distance_of_current_location_behind_pulse_as_percent_of_display < size_pulse_head_as_percent_of_display){
+        head_factor = 1.0;
+    }
+    */
+    
+    
+    /*
+    // Don't think can work with this as-is
+    if(distance_of_current_location_behind_pulse_as_percent_of_display < ( size_pulse_head_as_percent_of_display   )){
+       // Tailing edge of area behind pulse. Adding +ive values to size_pulse_head_as_percent_of_display delays end of tail.
+       // If head size = 0, +ive values also adds a section that is in contact with the pulse index
+       below_or_left = true;
+    }
+    if(distance_of_current_location_in_front_of_pulse_as_percent_of_display < ( size_pulse_head_as_percent_of_display  )){
+        // Leading edge of area in front of pulse. Adding  Adding +ive values to size_pulse_head_as_percent_of_display advances start of tail.
+        // If head size = 0, +ive values also adds a section that is in contact with the pulse index
+        above_or_right = true;
+    }
+    */
+    
+    /*
+    if(above_or_right){
+        head_factor = 1.0;
+    }
+    if(below_or_left){
+        head_factor = 1.0;
+    }
+    */
+    
+    
+    /*
+    
+    if(distance_of_current_location_in_front_of_pulse_as_percent_of_display < ((size_pulse_head_as_percent_of_display - head_offset_as_percent_of_display)/2.0)){
+        above_or_right = true;
+    }
+    if(distance_of_current_location_behind_pulse_as_percent_of_display < ((size_pulse_head_as_percent_of_display + head_offset_as_percent_of_display)/2.0)){
+        below_or_left = true;
+    }
+    
+
+    
+    if(above_or_right && below_or_left){
+        head_factor = 1.0;
+    }
+    else if(above_or_right && !below_or_left){
+        head_factor = 0.33;
+    }
+    else if(!above_or_right && below_or_left){
+        head_factor = 0.67;
+    }
+    else{
+        head_factor = 0.0;
+    }
+    
+    */
+    
+    
+    // Maybe: pass multiples of head size instead of multiples of LEDs to this function?
+    // Maybe: shift around ... uh...
+    //
+    // Case 1: Head is split across pulse index
+    // Case 2: Head is 100% on trailing edge of pulse and in contact with pulse
+    // Case 3: Head is 100% on leading edge of pulse and in contact with pulse
+    // Case 4: Head is 100% on trailing edge of pulse and begins some distance behind the pulse
+    // Case 5: Head is 100% on leading edge of pulse and finishes some distance in front of the pulse
+    // Case 6: No head: head is 0 width. Might be covered by other cases. Might be more efficient to handle it separately.
+
+
+    // Good idea to make this it's own separate function
+    float size_forward = ((size_pulse_head_as_percent_of_display)/2.0) - head_offset_as_percent_of_display;
+    float size_backward = ((size_pulse_head_as_percent_of_display)/2.0) + head_offset_as_percent_of_display;
+    
+    if (size_forward > size_pulse_head_as_percent_of_display){
+        // Entire head is in front of the pulse and not touching it
+        if(distance_of_current_location_in_front_of_pulse_as_percent_of_display < (size_forward - size_pulse_head_as_percent_of_display) ){
+            head_factor = 0.0;
+        }
+        else if(distance_of_current_location_in_front_of_pulse_as_percent_of_display < size_forward){
+            head_factor = 1.0;
+        }
+        else{
+            head_factor = 0.0;
+        }
+    }
+    else if (size_backward > size_pulse_head_as_percent_of_display){
+        // Entire head is behind the pulse and not touching it
+        if(distance_of_current_location_behind_pulse_as_percent_of_display < (size_backward + size_pulse_head_as_percent_of_display) ){
+            head_factor = 0.0;
+        }
+        else if(distance_of_current_location_behind_pulse_as_percent_of_display < size_backward){
+            head_factor = 1.0;
+        }
+        else{
+            head_factor = 0.0;
+        }
+    }
+    //Head spans the pulse index if neither of the above two options applies
+    else if(distance_of_current_location_in_front_of_pulse_as_percent_of_display < size_forward ){
+        head_factor = 1.0;
+    }
+    else if(distance_of_current_location_behind_pulse_as_percent_of_display < size_backward ){
         head_factor = 1.0;
     }
     
-    
+    //return distance_of_current_location_in_front_of_pulse_as_percent_of_display / size_of_cycle_as_percent_of_display;
+    //return distance_of_current_location_behind_pulse_as_percent_of_display / size_of_cycle_as_percent_of_display;
     return head_factor;
 }
 
@@ -614,16 +730,17 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     vec2 decay_and_fade_offset = get_decay_and_fade_offsets(head_buffer_leds, head_buffer_alignment, size_of_led_as_percent_of_display, size_pulse_head_in_leds);
     
 
-    // Shift head as a percent of a full LED
-    float head_offset;
+    // Shift head as a multiple of a full LED
+    float head_offset_in_leds = 0.5;    // I think 0.5 is the original behaviour: head begins at pulse index and trails it.
+    float head_offset_as_percent_of_display;
     
     if(!display_discrete_led_output){
-        head_offset = get_led_offset_as_percent_of_display(-1.0, size_of_led_as_percent_of_display);
+        head_offset_as_percent_of_display = get_led_offset_as_percent_of_display(head_offset_as_percent_of_display, size_of_led_as_percent_of_display);
     }
     
  
     // Generate head
-    float head_factor = generate_head(pulse_location_as_percent_of_display, current_location_on_y_axis_of_display_as_percent_of_display, distance_of_current_location_behind_pulse_as_percent_of_display, distance_of_current_location_in_front_of_pulse_as_percent_of_display, head_offset, pulse);
+    float head_factor = generate_head(pulse_location_as_percent_of_display, current_location_on_y_axis_of_display_as_percent_of_display, distance_of_current_location_behind_pulse_as_percent_of_display, distance_of_current_location_in_front_of_pulse_as_percent_of_display, head_offset_as_percent_of_display, pulse);
 
     
     // Generate tail + fade-in

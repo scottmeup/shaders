@@ -10,7 +10,7 @@
 // - - Especially for blending pulse head to fade-in
 // - Consider separating image generation function into separate functions
 // - Consider duplicating variables from pulse struct into local scope
-
+// - Write better variable names for get_decay_and_fade_offsets()
 
 
 // Begin User Config Globals Section
@@ -34,8 +34,8 @@ const bool debug_fade_in = false;                 // I think it looks better wit
 const bool debug_show_LED_map = false;
 const bool debug_show_distance_behind_pulse = false;
 const bool debug_show_distance_in_front_of_pulse = false;
-const bool debug_show_intended_output = false;
-const bool debug_define_led_element = true;
+const bool debug_show_intended_output = true;
+const bool debug_define_led_element = false;
 
 
 
@@ -141,12 +141,17 @@ float distance_with_mod(float position_initial, float position_final, float size
 
 vec2 get_decay_and_fade_offsets(float head_buffer_leds, float head_buffer_alignment, float size_of_led_as_percent_of_display, float size_pulse_head_in_leds){
     // Alighment & buffer space between full-intensity section and fade-in / decay
+    // head_buffer_leds: amount of space to extend / retract the fade & decay areas
+    // head_buffer_alignment: shift the fade & decay areas forward or backward by this amount of LEDs
+    // size_of_led_as_percent_of_display: number of LED elements in the display
+    // size_pulse_head_in_leds: size of full intensity area as a multiple of LEDs
+    //
     // head_buffer_leds = 0.0, head_buffer_alignment = 0.5 : full illumination to exactly 1 LED element at a time and aligns LEDs to index of pulse
     // 
     // Probably best managed as part of Pulse_settings or with additional logic: doesn't always play nice with continuous display mode
     vec2 offset;
     offset.x = ((( head_buffer_leds - 0.5 ) + size_pulse_head_in_leds) * size_of_led_as_percent_of_display) * (1.5 - head_buffer_alignment);
-    offset.y = (((  head_buffer_leds - 0.5 )+ size_pulse_head_in_leds) * size_of_led_as_percent_of_display * (head_buffer_alignment - 0.5 )) ;
+    offset.y = ((( head_buffer_leds - 0.5 ) + size_pulse_head_in_leds) * size_of_led_as_percent_of_display * (head_buffer_alignment - 0.5 )) ;
     return offset;
 }
 
@@ -658,16 +663,22 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     
 
     // Shift head as a multiple of a full LED. -ive is behind pulse, +ive is in front of pulse.
-    float head_offset_in_leds = 0.0;    // 0.0 is default behaviour: align head behind pulse index. 0.5 will center head on pulse index.
-    float head_offset_as_percent_of_display;
+    float head_offset_in_leds = -0.5;    // -0.5 is the original behaviour: align behind pulse index. 0.0 will center head on pulse index.
+    //float head_offset_as_percent_of_display;
     
     if(!display_discrete_led_output){
-        head_offset_as_percent_of_display = get_led_offset_as_percent_of_display(head_offset_as_percent_of_display, size_of_led_as_percent_of_display);
+        //head_offset_as_percent_of_display = get_led_offset_as_percent_of_display(head_offset_as_percent_of_display, size_of_led_as_percent_of_display);
+        head_offset_in_leds = 0.0;
     }
     
  
     // Generate head
-    float head_factor = generate_head(pulse_location_as_percent_of_display, current_location_on_y_axis_of_display_as_percent_of_display, distance_of_current_location_behind_pulse_as_percent_of_display, distance_of_current_location_in_front_of_pulse_as_percent_of_display, head_offset_as_percent_of_display, pulse);
+    //float head_factor = generate_head(pulse_location_as_percent_of_display, current_location_on_y_axis_of_display_as_percent_of_display, distance_of_current_location_behind_pulse_as_percent_of_display, distance_of_current_location_in_front_of_pulse_as_percent_of_display, head_offset_as_percent_of_display, pulse);
+    bool head_is_defined = define_led_element_at_offset_from_pulse_index(head_offset_in_leds, size_pulse_head_in_leds, size_of_display_in_leds, distance_of_current_location_in_front_of_pulse_as_percent_of_display, distance_of_current_location_behind_pulse_as_percent_of_display);
+    float head_factor = 0.0;
+    if(head_is_defined){
+        head_factor = 1.0;
+    }
     
     // Generate tail + fade-in
     float decay_factor =   generate_pulse_decay( (distance_of_current_location_behind_pulse_as_percent_of_display) - decay_and_fade_offset.x, pulse_location_as_percent_of_display, size_of_cycle_as_percent_of_display, decay_and_fade_offset.x, pulse);
@@ -731,8 +742,8 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         if(defined_led_element){
             display_output_vector = vec3(0.0, 1.0, 0.0);
         }
-        if((distance_of_current_location_behind_pulse_as_percent_of_display < 0.01) || (distance_of_current_location_in_front_of_pulse_as_percent_of_display < 0.01)){
-            display_output_vector = vec3(1.0, 1.0, 1.0);
+        if((distance_of_current_location_behind_pulse_as_percent_of_display < 0.001) || (distance_of_current_location_in_front_of_pulse_as_percent_of_display < 0.001)){
+            display_output_vector = vec3(1.0, 0.0, 0.0);
         }
     }
     

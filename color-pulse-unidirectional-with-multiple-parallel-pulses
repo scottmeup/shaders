@@ -11,6 +11,8 @@
 // - Consider separating image generation function into separate functions
 // - Consider duplicating variables from pulse struct into local scope
 // - Write better variable names for get_decay_and_fade_offsets()
+// - Examine get_decay_and_fade_offsets():
+// - - 'head_buffer_leds - 0.5' or 'head_buffer_leds / 2.0' ?
 
 
 // Begin User Config Globals Section

@@ -8,10 +8,9 @@
 // - Inverse brightness mode?
 // - Look into brightness as a function of RGB, consider re-working brightness calculation
 // - - Especially for blending pulse head to fade-in
-// - Consider separating image generation function into separate functions
-// - Consider duplicating variables from pulse struct into local scope
 // - Write better variable names for get_decay_and_fade_offsets()
 // - Fix bug where decay or fade calculations begin on the opposide side of the pulse index. See: define_led function for fix
+// - Finish re-implementing old code
 
 
 // Begin User Config Globals Section

@@ -3,11 +3,9 @@
 
 // - Additional Features to consider
 // - - Inverse brightness mode
-// - - Set or rotate color at specific LED
+// - - Set fixed or rotated color at specific LED position
 //
 // To-do
-// - Fix bug with fade-in: Currently fade-in gives 1 LED at full intensity behind the LED that is actively fading in
-// - - Added a debug switch to see if I like it better with or without that
 // - Check timing of first LED in fade_and_decay_first_and_last_led_only
 // - Look into brightness as a function of RGB, consider re-working brightness calculation
 // - - Especially for blending pulse head to fade-in
@@ -40,8 +38,9 @@ const vec3 blue = vec3(0.0, 0.0, 1.0);
 const float pi = 3.14159265358979323;
 
 const bool debug_master = true;
+const bool debug_add_overlay_colorshft = false;
 
-const bool debug_background = false;
+const bool debug_background = true;
 const bool debug_decay_and_fade_in = false;
 const bool debug_fade_in = false;                 // I think it looks better with this set to false
 const bool debug_show_LED_map = false;
@@ -50,7 +49,7 @@ const bool debug_show_distance_in_front_of_pulse = false;
 const bool debug_define_led_element = false;
 const bool debug_head = false;
 
-const bool debug_show_intended_output = false;
+const bool debug_show_intended_output = true;
 
 
 
@@ -800,34 +799,33 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     
     // Debug section
     if(debug_master){
-    
-        display_output_vector = vec3(sin(iTime), sin(iTime - (pi*two_thirds)), sin(iTime - (2.0*pi*two_thirds)));
-        
+        if(debug_add_overlay_colorshft){
+            display_output_vector = vec3(sin(iTime), sin(iTime - (pi*two_thirds)), sin(iTime - (2.0*pi*two_thirds)));
+        }
         // intended output
         if(debug_show_intended_output){
             // head section
             if(head_factor > 0.0){
-                display_output_vector += (head_factor * rgb_pulse);
-                display_output_vector = restrict_vec3_from_0_to_1(display_output_vector);
+                // Apply head
+                display_output_vector = restrict_vec3_from_0_to_1((display_output_vector + (head_factor * rgb_pulse)));
             }
             // the rest
             else{
-                display_output_vector += (fade_in_factor * rgb_fade_in);
-                display_output_vector = restrict_vec3_from_0_to_1(display_output_vector);
-                display_output_vector += max((decay_factor * rgb_pulse), (color_pulse_minimum_brightness_percent * rgb_pulse));
-                display_output_vector = restrict_vec3_from_0_to_1(display_output_vector);
+                // Apply fade-in
+                display_output_vector = restrict_vec3_from_0_to_1(display_output_vector + (fade_in_factor * rgb_fade_in));
+                // Apply decay trail
+                display_output_vector = restrict_vec3_from_0_to_1(display_output_vector + (max((decay_factor * rgb_pulse), (color_pulse_minimum_brightness_percent * rgb_pulse))));
                 
                 float brightness = 0.0;
                 // Calculate brightness before, or after applying background
                 if(color_brightness_cutoff_includes_background_brightness){
-                    display_output_vector += rgb_background;
+                    display_output_vector = restrict_vec3_from_0_to_1(display_output_vector + rgb_background);
                     brightness = get_brightness_of_color(display_output_vector);
                 }
                 else{
                     brightness = get_brightness_of_color(display_output_vector);
-                    display_output_vector += rgb_background;
+                    display_output_vector = restrict_vec3_from_0_to_1(display_output_vector + rgb_background);
                 }
-                display_output_vector = restrict_vec3_from_0_to_1(display_output_vector);
                 
                 // Apply alternate color if calculated brightness is below the minimum specified
                 if(brightness < color_brightness_cutoff){

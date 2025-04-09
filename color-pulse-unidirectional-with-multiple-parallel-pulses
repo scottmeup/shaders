@@ -1,17 +1,18 @@
 // configurable color pulses
 
 
+// - Additional Features to consider
+// - - Inverse brightness mode
+// - - Set or rotate color at specific LED
+//
 // To-do
 // - Fix bug with fade-in: Currently fade-in gives 1 LED at full intensity behind the LED that is actively fading in
 // - - Added a debug switch to see if I like it better with or without that
 // - Check timing of first LED in fade_and_decay_first_and_last_led_only
-// - Inverse brightness mode?
 // - Look into brightness as a function of RGB, consider re-working brightness calculation
 // - - Especially for blending pulse head to fade-in
 // - Write better variable names for get_decay_and_fade_offsets()
-// - Fix bug where decay or fade calculations begin on the opposide side of the pulse index. See: define_led function for fix
-// - Finish re-implementing old code
-// - Fix bug in head / head buffer placement where values other than 1 for size of head are aligned forward (>1) or behind (<1) the pulse index
+// - Implement head offset & head buffer column settings
 
 
 // Begin User Config Globals Section
@@ -36,15 +37,20 @@ const float two_thirds = (2.0 / 3.0);
 const vec3 red = vec3(1.0, 0.0, 0.0);
 const vec3 green = vec3(0.0, 1.0, 0.0);
 const vec3 blue = vec3(0.0, 0.0, 1.0);
+const float pi = 3.14159265358979323;
+
 const bool debug_master = true;
+
+const bool debug_background = false;
+const bool debug_decay_and_fade_in = false;
 const bool debug_fade_in = false;                 // I think it looks better with this set to false
 const bool debug_show_LED_map = false;
 const bool debug_show_distance_behind_pulse = false;
 const bool debug_show_distance_in_front_of_pulse = false;
 const bool debug_define_led_element = false;
 const bool debug_head = false;
-const bool debug_decay_and_fade_in = false;
-const bool debug_show_intended_output = true;
+
+const bool debug_show_intended_output = false;
 
 
 
@@ -549,18 +555,10 @@ vec3 apply_minimum_brightness(vec3 color_at_current_location, Pulse_settings pul
 }
 
 
-float get_brightness_of_color(vec3 color, Pulse_settings pulse){
+float get_brightness_of_color(vec3 color){
     // Generate a value for the brightness of a given color
     // Current implementation just returns the average value of the vector
-    vec3 rgb_background = pulse.rgb_background;
-    float color_brightness_intensity;
-    if( pulse.color_brightness_cutoff_includes_background_brightness){
-        color_brightness_intensity = (dot(ones3d, color) + dot(ones3d, rgb_background)) / 3.0;
-    }
-    else{
-        color_brightness_intensity = dot(ones3d, color) / 3.0;
-    }
-    return color_brightness_intensity;
+    return (dot(ones3d, color) / 3.0);
 }
 
 
@@ -684,11 +682,16 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     
     // Copy some variables from the current pulse into local scope
     Pulse_settings pulse = pulse_array[index_current_pulse];
-    float size_of_display_in_leds = pulse.size_of_display_in_leds;
     bool display_discrete_led_output = pulse.display_discrete_led_output;
+    bool color_brightness_cutoff_includes_background_brightness = pulse.color_brightness_cutoff_includes_background_brightness;
+    float color_brightness_cutoff = pulse.color_brightness_cutoff;
+    float color_pulse_minimum_brightness_percent = pulse.color_pulse_minimum_brightness_percent;
+    float size_of_display_in_leds = pulse.size_of_display_in_leds;
+    float size_pulse_head_in_leds = pulse.size_pulse_head_in_leds;
+    vec3 rgb_background = pulse.rgb_background;
+    vec3 rgb_pause = pulse.rgb_pause;
     vec3 rgb_pulse = pulse.rgb_pulse;
     vec3 rgb_fade_in = pulse.rgb_fade_in;
-    float size_pulse_head_in_leds = pulse.size_pulse_head_in_leds;
     
     // Set up some variables related to display
     float size_of_led_as_percent_of_display = (1.0 / size_of_display_in_leds);
@@ -798,15 +801,45 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     // Debug section
     if(debug_master){
     
-        display_output_vector = vec3(0.0, 0.0, 0.0);
+        display_output_vector = vec3(sin(iTime), sin(iTime - (pi*two_thirds)), sin(iTime - (2.0*pi*two_thirds)));
+        
+        // intended output
         if(debug_show_intended_output){
+            // head section
             if(head_factor > 0.0){
                 display_output_vector += (head_factor * rgb_pulse);
+                display_output_vector = restrict_vec3_from_0_to_1(display_output_vector);
             }
+            // the rest
             else{
-                display_output_vector += (fade_in_factor * rgb_fade_in) + (decay_factor * rgb_pulse);
+                display_output_vector += (fade_in_factor * rgb_fade_in);
+                display_output_vector = restrict_vec3_from_0_to_1(display_output_vector);
+                display_output_vector += max((decay_factor * rgb_pulse), (color_pulse_minimum_brightness_percent * rgb_pulse));
+                display_output_vector = restrict_vec3_from_0_to_1(display_output_vector);
+                
+                float brightness = 0.0;
+                // Calculate brightness before, or after applying background
+                if(color_brightness_cutoff_includes_background_brightness){
+                    display_output_vector += rgb_background;
+                    brightness = get_brightness_of_color(display_output_vector);
+                }
+                else{
+                    brightness = get_brightness_of_color(display_output_vector);
+                    display_output_vector += rgb_background;
+                }
+                display_output_vector = restrict_vec3_from_0_to_1(display_output_vector);
+                
+                // Apply alternate color if calculated brightness is below the minimum specified
+                if(brightness < color_brightness_cutoff){
+                    display_output_vector = rgb_pause;
+                }
+  
             }
             display_output_vector = restrict_vec3_from_0_to_1(display_output_vector);
+        }
+        
+        if(debug_background){
+            display_output_vector += rgb_background;
         }
 
 

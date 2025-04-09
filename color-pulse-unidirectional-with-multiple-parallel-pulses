@@ -36,13 +36,14 @@ const float two_thirds = (2.0 / 3.0);
 const vec3 red = vec3(1.0, 0.0, 0.0);
 const vec3 green = vec3(0.0, 1.0, 0.0);
 const vec3 blue = vec3(0.0, 0.0, 1.0);
+const bool debug_master = true;
 const bool debug_fade_in = false;                 // I think it looks better with this set to false
 const bool debug_show_LED_map = false;
 const bool debug_show_distance_behind_pulse = false;
 const bool debug_show_distance_in_front_of_pulse = false;
 const bool debug_define_led_element = false;
-const bool debug_head = true;
-const bool debug_decay_and_fade_in = false;
+const bool debug_head = false;
+const bool debug_decay_and_fade_in = true;
 const bool debug_show_intended_output = false;
 
 
@@ -134,6 +135,11 @@ bool close_to(float value_variable, float value_comparison, float tolerance){
     }
 } 
 
+
+float invert_value(float value, float range){
+    return range - value;
+}
+
 float restrict_float_from_0_to_1(float var){
 // Return a float with value between 0.0 and 1.0
     var = min(var, 1.0);
@@ -141,9 +147,6 @@ float restrict_float_from_0_to_1(float var){
     return var;
 }
 
-float invert_value(float value, float range){
-    return range - value;
-}
 
 vec3 restrict_vec3_from_0_to_1(vec3 var){
 // Return a 3D vector with values between 0.0 and 1.0
@@ -789,143 +792,149 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     
     
     
-    
-    
-    
-    
     // Debug section
-        
-    if(debug_show_intended_output){
-        if(head_factor > 0.0){
-            display_output_vector = (head_factor * rgb_pulse);
+    if(debug_master){
+    
+        display_output_vector = vec3(0.0, 0.0, 0.0);
+        if(debug_show_intended_output){
+            if(head_factor > 0.0){
+                display_output_vector += (head_factor * rgb_pulse);
+            }
+            else{
+                display_output_vector += (fade_in_factor * rgb_fade_in) + (decay_factor * rgb_pulse);
+            }
+            display_output_vector = restrict_vec3_from_0_to_1(display_output_vector);
         }
-        else{
-            display_output_vector = (fade_in_factor * rgb_fade_in) + (decay_factor * rgb_pulse);
-        }
-    }
-    
-    
-    if(debug_define_led_element){
-        float offset_from_pulse_in_leds = 1.0;
-        float size_of_defined_element_in_leds = 1.0;
-        bool defined_led_element = define_led_element_at_offset_from_pulse_index(offset_from_pulse_in_leds, size_of_defined_element_in_leds, size_of_display_in_leds, distance_of_current_location_in_front_of_pulse_as_percent_of_display, distance_of_current_location_behind_pulse_as_percent_of_display);
-        if(defined_led_element){
-            display_output_vector = vec3(0.0, 1.0, 0.0);
-        }
-        if((distance_of_current_location_behind_pulse_as_percent_of_display < 0.001) || (distance_of_current_location_in_front_of_pulse_as_percent_of_display < 0.001)){
-            display_output_vector = vec3(1.0, 0.0, 0.0);
-        }
-    }
-    
-    if(debug_show_distance_behind_pulse){
-        // Show distance on screen behind pulse location
-        // Brighter = Closer
-        // Darker = Further away
-        display_output_vector = ( 1.0 - (distance_of_current_location_behind_pulse_as_percent_of_display ) ) * rgb_pulse;
-    }
-    
-    
-    if(debug_show_distance_in_front_of_pulse){
-        // Show distance on screen behind pulse location
-        // Brighter = Closer
-        // Darker = Further away
-        display_output_vector =  ( 1.0 - (distance_of_current_location_in_front_of_pulse_as_percent_of_display ) ) * rgb_pulse;
-    }
-    
-    if(debug_show_distance_behind_pulse && debug_show_distance_in_front_of_pulse){
-        vec3 backward_output_vector = ( 1.0 - (distance_of_current_location_behind_pulse_as_percent_of_display ) ) * rgb_pulse;
-        vec3 forward_output_vector =  ( 1.0 - (distance_of_current_location_in_front_of_pulse_as_percent_of_display ) ) * rgb_pulse;
-        backward_output_vector = restrict_vec3_from_0_to_1(backward_output_vector);
-        forward_output_vector = restrict_vec3_from_0_to_1(forward_output_vector);
-        display_output_vector = backward_output_vector + forward_output_vector;
-        //display_output_vector = forward_output_vector;
-    }
-    
-    
-    if(debug_show_LED_map){
-        // Show distance on screen from beginning of the current LED element
-        // Brighter = Closer
-        // Darker = Further away
-        display_output_vector = ( 1.0 - distance_of_current_location_behind_start_of_led_as_percent_of_display * size_of_display_in_leds ) * rgb_pulse;
-    }
-    
 
 
-    if(debug_head && debug_decay_and_fade_in){
-        float decay_border;
-        float fade_in_border;
-        float decay_or_head_border;
+        if(debug_define_led_element){
+            float offset_from_pulse_in_leds = 1.0;
+            float size_of_defined_element_in_leds = 1.0;
+            bool defined_led_element = define_led_element_at_offset_from_pulse_index(offset_from_pulse_in_leds, size_of_defined_element_in_leds, size_of_display_in_leds, distance_of_current_location_in_front_of_pulse_as_percent_of_display, distance_of_current_location_behind_pulse_as_percent_of_display);
+            if(defined_led_element){
+                display_output_vector += vec3(0.0, 1.0, 0.0);
+            }
+            if((distance_of_current_location_behind_pulse_as_percent_of_display < 0.001) || (distance_of_current_location_in_front_of_pulse_as_percent_of_display < 0.001)){
+                display_output_vector += vec3(1.0, 0.0, 0.0);
+            }
+            display_output_vector = restrict_vec3_from_0_to_1(display_output_vector);
+        }
 
-        if(decay_factor == 1.0){
-            decay_border = 1.0;
+        if(debug_show_distance_behind_pulse){
+            // Show distance on screen behind pulse location
+            // Brighter = Closer
+            // Darker = Further away
+            display_output_vector += ( 1.0 - (distance_of_current_location_behind_pulse_as_percent_of_display ) ) * rgb_pulse;
+            display_output_vector = restrict_vec3_from_0_to_1(display_output_vector);
         }
-        if(fade_in_factor == 1.0){
-            fade_in_border = 1.0;
-        }
-        if((decay_factor == 1.0) || (fade_in_factor==1.0)){
-            decay_or_head_border = 1.0;
-        }
-        //display_output_vector = (green * head_factor) + (red * ((decay_factor * two_thirds) + (fade_in_factor * one_third)) + (blue * ((decay_factor*one_third) + (fade_in_factor*two_thirds))));
-        display_output_vector = (green * head_factor) + (red * (decay_factor + fade_in_factor) + (blue * decay_or_head_border));
 
-    }
-    else if(debug_head){
-        display_output_vector = ones3d * head_factor;
-    }
-    else if(debug_decay_and_fade_in){
-        //display_output_vector = ones3d * (decay_factor + fade_in_factor);
-        
-        float border_fade_in;
-        float border_decay;
-        float offset_area;
-        float pulse_index;
-        vec3 debug_vector = vec3(0.0, 0.0, 0.0);
-        if(decay_factor == 1.0){
-            decay_factor = 0.0;
-        }
-        if(fade_in_factor == 1.0){
-            fade_in_factor = 0.0;
-        }
-        
-        if(fade_in_factor > 0.99){
-            border_fade_in = 1.0;
-            fade_in_factor = 0.0;
-        }
-        if(decay_factor > 0.99){
-            border_decay = 1.0;
-            decay_factor = 0.0;
-        }                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
-        /*
-        // Kind-of working. Doesn't handle overflow.
-        if((distance_of_current_location_behind_pulse_as_percent_of_display < decay_and_fade_offset.x ) || (distance_of_current_location_in_front_of_pulse_as_percent_of_display < decay_and_fade_offset.y)){
 
-        if((distance_of_current_location_behind_pulse_as_percent_of_display < decay_and_fade_offset.x ) || (distance_of_current_location_in_front_of_pulse_as_percent_of_display < decay_and_fade_offset.y)){
-            offset_area = 1.0;
+        if(debug_show_distance_in_front_of_pulse){
+            // Show distance on screen behind pulse location
+            // Brighter = Closer
+            // Darker = Further away
+            display_output_vector +=  ( 1.0 - (distance_of_current_location_in_front_of_pulse_as_percent_of_display ) ) * rgb_pulse;
+            display_output_vector = restrict_vec3_from_0_to_1(display_output_vector);
         }
-        */
-        // size_pulse_head_as_percent_of_display
-        
- 
-        if(close_to(distance_of_current_location_behind_pulse_as_percent_of_display, decay_and_fade_offset.x, 0.01)){
-            offset_area = 1.0;
+
+        if(debug_show_distance_behind_pulse && debug_show_distance_in_front_of_pulse){
+            vec3 backward_output_vector = ( 1.0 - (distance_of_current_location_behind_pulse_as_percent_of_display ) ) * rgb_pulse;
+            vec3 forward_output_vector =  ( 1.0 - (distance_of_current_location_in_front_of_pulse_as_percent_of_display ) ) * rgb_pulse;
+            backward_output_vector = restrict_vec3_from_0_to_1(backward_output_vector);
+            forward_output_vector = restrict_vec3_from_0_to_1(forward_output_vector);
+            display_output_vector += (backward_output_vector + forward_output_vector);
+            display_output_vector = restrict_vec3_from_0_to_1(display_output_vector);
         }
-        if(close_to(distance_of_current_location_in_front_of_pulse_as_percent_of_display, decay_and_fade_offset.y, 0.01)){
-            offset_area = 1.0;
+
+
+        if(debug_show_LED_map){
+            // Show distance on screen from beginning of the current LED element
+            // Brighter = Closer
+            // Darker = Further away
+            display_output_vector += ( 1.0 - distance_of_current_location_behind_start_of_led_as_percent_of_display * size_of_display_in_leds ) * rgb_pulse;
+            display_output_vector = restrict_vec3_from_0_to_1(display_output_vector);
         }
-        
-        /*
-        if((distance_of_current_location_in_front_of_pulse_as_percent_of_display < 0.002) || (distance_of_current_location_behind_pulse_as_percent_of_display < 0.002)){
-            pulse_index = 1.0;
+
+
+
+        if(debug_head && debug_decay_and_fade_in){
+            float decay_border;
+            float fade_in_border;
+            float decay_or_head_border;
+
+            if(decay_factor == 1.0){
+                decay_border = 1.0;
+            }
+            if(fade_in_factor == 1.0){
+                fade_in_border = 1.0;
+            }
+            if((decay_factor == 1.0) || (fade_in_factor==1.0)){
+                decay_or_head_border = 1.0;
+            }
+            //display_output_vector = (green * head_factor) + (red * ((decay_factor * two_thirds) + (fade_in_factor * one_third)) + (blue * ((decay_factor*one_third) + (fade_in_factor*two_thirds))));
+            display_output_vector += (green * head_factor) + (red * (decay_factor + fade_in_factor) + (blue * decay_or_head_border));
+            display_output_vector = restrict_vec3_from_0_to_1(display_output_vector);
         }
-        */
-        
-        if(close_to(distance_of_current_location_in_front_of_pulse_as_percent_of_display, 0.01, 0.01)){
-            pulse_index = 1.0;
+        else if(debug_head){
+            display_output_vector += ones3d * head_factor;
+            display_output_vector = restrict_vec3_from_0_to_1(display_output_vector);
         }
-        
-        display_output_vector = ((border_fade_in * blue) + (border_decay * blue) + ((fade_in_factor + decay_factor) * red) + (offset_area * green) + (pulse_index) ) * ones3d;
+        else if(debug_decay_and_fade_in){
+            //display_output_vector = ones3d * (decay_factor + fade_in_factor);
+
+            float border_fade_in;
+            float border_decay;
+            float offset_area;
+            float pulse_index;
+            vec3 debug_vector = vec3(0.0, 0.0, 0.0);
+            if(decay_factor == 1.0){
+                decay_factor = 0.0;
+            }
+            if(fade_in_factor == 1.0){
+                fade_in_factor = 0.0;
+            }
+
+            if(fade_in_factor > 0.99){
+                border_fade_in = 1.0;
+                fade_in_factor = 0.0;
+            }
+            if(decay_factor > 0.99){
+                border_decay = 1.0;
+                decay_factor = 0.0;
+            }                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+            /*
+            // Kind-of working. Doesn't handle overflow.
+            if((distance_of_current_location_behind_pulse_as_percent_of_display < decay_and_fade_offset.x ) || (distance_of_current_location_in_front_of_pulse_as_percent_of_display < decay_and_fade_offset.y)){
+
+            if((distance_of_current_location_behind_pulse_as_percent_of_display < decay_and_fade_offset.x ) || (distance_of_current_location_in_front_of_pulse_as_percent_of_display < decay_and_fade_offset.y)){
+                offset_area = 1.0;
+            }
+            */
+            // size_pulse_head_as_percent_of_display
+
+
+            if(close_to(distance_of_current_location_behind_pulse_as_percent_of_display, decay_and_fade_offset.x, 0.01)){
+                offset_area = 1.0;
+            }
+            if(close_to(distance_of_current_location_in_front_of_pulse_as_percent_of_display, decay_and_fade_offset.y, 0.01)){
+                offset_area = 1.0;
+            }
+
+            /*
+            if((distance_of_current_location_in_front_of_pulse_as_percent_of_display < 0.002) || (distance_of_current_location_behind_pulse_as_percent_of_display < 0.002)){
+                pulse_index = 1.0;
+            }
+            */
+
+            if(close_to(distance_of_current_location_in_front_of_pulse_as_percent_of_display, 0.01, 0.01)){
+                pulse_index = 1.0;
+            }
+
+            display_output_vector += ((border_fade_in * blue) + (border_decay * blue) + ((fade_in_factor + decay_factor) * red) + (offset_area * green) + (pulse_index) ) * ones3d;
+            display_output_vector = restrict_vec3_from_0_to_1(display_output_vector);
+        }
     }
-    
+
     // Display final output
     fragColor = vec4(display_output_vector.x, display_output_vector.y, display_output_vector.z, 1.0);
 }

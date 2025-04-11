@@ -279,11 +279,12 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     float degree = RAD_TO_DEGREE;
     float speed = 0.7;
     float size_of_space = 2.0 * pi;
-    float time = mod(iTime, size_of_space) * speed;
+    float time = mod(iTime*speed, size_of_space);
     float circle_one_third = 120.0 * radian;
     float circle_two_thirds = 240.0 * radian;
-    float brightness = sin(mod(iTime*0.13, size_of_space)) * 2.0;
+    float brightness = sin(mod(iTime*0.13, size_of_space))/2.0;
     vec3 display_output;
+    vec3 testRGB;
     vec3 display_error_output = vec3(0.0, 0.0, 0.0);
     bool condition_error_found = false;
 
@@ -295,10 +296,14 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     //vec3 testRGB = red;
 
     // Vary test color
-    float time_sin_normalized = (sin(time) + 1.0) / 2.0;
-    vec3 testRGB = vec3(normalize_trig_function(sin(time)), normalize_trig_function(sin(time-circle_one_third)), normalize_trig_function(sin(time-circle_two_thirds)) + brightness);
+    float sin_offset_0 = normalize_trig_function(sin(time));
+    float sin_offset_1 = normalize_trig_function(sin(time+circle_one_third));
+    float sin_offset_2 = normalize_trig_function(sin(time+circle_two_thirds));
+    testRGB = vec3(sin_offset_2, sin_offset_1, sin_offset_0) + brightness;
     testRGB = clamp(testRGB, 0.0, 1.0);
     
+
+
     // Test all levels of conversion at once
     //display_output = LinearRGBToHLCToLinearRGB(testRGB);
 

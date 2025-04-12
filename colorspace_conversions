@@ -1,15 +1,18 @@
-#version 430 // Must be line 1 for GLSL viewer. Comment this line out to use with shadertoy
+//#version 430 // Must be line 1 
 // Begin GLSL viewer Section 1 
-// Comment this section out to use with shadertoy
+// Comment this section out if there are problems running on shadertoy
+#ifdef GL_ES
+precision mediump float;
+#endif 
+#define u_tex0 iChannel0;
 uniform vec2 u_resolution;
 uniform vec2 u_mouse;
 uniform float u_time;
-precision highp float;
-//uniform texture u_tex0;
+uniform sampler2D u_tex0;
+//precision highp float;
 vec2 iResolution;   // viewport resolution (in pixels)
 float iTime;        // shader playback time (in seconds)
 vec4 iMouse;        // mouse pixel coords (xy), click state (zw)
-//texture iChannel0;
 out vec4 FragColor;         // Final color output
 void mainImage(out vec4 fragColor, in vec2 fragCoord);
 // End GLSL viewer Section 1
@@ -25,6 +28,10 @@ const vec3 white =     vec3(1.0, 1.0, 1.0);
 const vec3 black =     vec3(0.0, 0.0, 0.0);
 const vec3 zeroes3d =  white;
 const vec3 ones3d =    black;
+
+const float pi = PI;
+const float radian = DEGREE_TO_RAD;
+const float degree = RAD_TO_DEGREE;
 
 
 vec3 srgb_to_linear_rgb(vec3 c) {
@@ -131,7 +138,7 @@ vec3 LabToXYZ(vec3 lab) {
 }
 
 
-
+// Confirm this is the correct colorspace
 // CIE LAB <-> CIE HLC
 // Level 3
 // Convert CIE Lab to CIE HLC
@@ -140,8 +147,13 @@ vec3 LabToHLC(vec3 lab) {
     float a = lab.y;
     float b = lab.z;
 
+    // * radian
     float C = sqrt(a * a + b * b); // Chroma
-    float H = atan(b, a) * 180.0 / 3.14159265359; // Hue in degrees
+    float H = atan(b, a) * 180.0 / 3.14159265359; 
+
+// additional code
+    H = mod(H, 360.0);
+//
 
     return vec3(L, C, H); // CIEHLC (L, C, H)
 }
@@ -152,8 +164,14 @@ vec3 HLCToLab(vec3 hlc) {
     float C = hlc.y;
     float H = hlc.z;
 
+    // * degree
     float a = C * cos(H * 3.14159265359 / 180.0);
     float b = C * sin(H * 3.14159265359 / 180.0);
+
+// additional code
+    //a = mod(a, 360.0)-180.0;
+    //b = mod(b, 360.0)-180.0;
+//
 
     return vec3(L, a, b);
 }
@@ -161,13 +179,7 @@ vec3 HLCToLab(vec3 hlc) {
 
 
 
-
-
-
-
-
-
-
+// Confirm this is the correct colorspace
 /////////////////////////
 // Approxmiate conversion
 vec3 RGBToApproxHCL(vec3 rgb) {
@@ -268,42 +280,20 @@ float normalize_trig_function(float input_value){
     return input_value;
 }
 
-// Main function
-void mainImage( out vec4 fragColor, in vec2 fragCoord )
-{
-    vec2 uv = fragCoord/iResolution.xy;
-    float pi = PI;
-    float size_of_space_degrees = 360.0;
-    float size_of_space_radians = 2.0 * pi;
-    float radian = DEGREE_TO_RAD;
-    float degree = RAD_TO_DEGREE;
-    float speed = 0.7;
-    float size_of_space = 2.0 * pi;
-    float time = mod(iTime*speed, size_of_space);
-    float circle_one_third = 120.0 * radian;
-    float circle_two_thirds = 240.0 * radian;
-    float brightness = sin(mod(iTime*0.13, size_of_space))/2.0;
+
+vec3 color_shift(vec3 testRGB, float lightness, float chroma, float hue){
+    //(L, C, H)
+    vec3 color_HLC;
     vec3 display_output;
-    vec3 testRGB;
-    vec3 display_error_output = vec3(0.0, 0.0, 0.0);
-    bool condition_error_found = false;
+    color_HLC = LabToHLC(XYZToLab(LinearRGBToXYZ(testRGB)));
+    color_HLC[2] += hue; 
+    display_output = XYZToLinearRGB(LabToXYZ(HLCToLab(color_HLC)));
+    return display_output;
+}
 
 
-    // Use white as the test color
-    //vec3 testRGB = white; 
-
-    // User red as the test color
-    //vec3 testRGB = red;
-
-    // Vary test color
-    float sin_offset_0 = normalize_trig_function(sin(time));
-    float sin_offset_1 = normalize_trig_function(sin(time+circle_one_third));
-    float sin_offset_2 = normalize_trig_function(sin(time+circle_two_thirds));
-    testRGB = vec3(sin_offset_2, sin_offset_1, sin_offset_0) + brightness;
-    testRGB = clamp(testRGB, 0.0, 1.0);
-    
-
-
+vec3 debug_convert_colors(vec3 testRGB){
+    vec3 display_output;
     // Test all levels of conversion at once
     //display_output = LinearRGBToHLCToLinearRGB(testRGB);
 
@@ -319,16 +309,22 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     //display_output = LabToXYZ(HLCToLab(LabToHLC(XYZToLab(testRGB))));
 
     // Test all levels of conversion at once
-    display_output = XYZToLinearRGB(LabToXYZ(HLCToLab(LabToHLC(XYZToLab(LinearRGBToXYZ(testRGB))))));
+    //display_output = XYZToLinearRGB(LabToXYZ(HLCToLab(LabToHLC(XYZToLab(LinearRGBToXYZ(testRGB))))));
 
-    // Test direct conversion & back using approxmiation
-    //display_output = ApproxHCLtoRGB(RGBToApproxHCL(testRGB));
+    // Test direct RBG to HCL conversion & back using approxmiation
+    display_output = ApproxHCLtoRGB(RGBToApproxHCL(testRGB));
 
     //display_output = clamp(display_output, 0.0, 1.0);
+    return display_output;
+}
 
+vec3 debug_compare_conversion(vec3 testRGB, vec3 display_output, vec2 uv){
+    vec3 display_error_output = vec3(0.0, 0.0, 0.0);
+    bool condition_error_found = false;
 
     // alter channels that differ by more than the percentage listed below
-    float allowed_difference_percent = 10.0;
+
+    float allowed_difference_percent = 5.0;
     for(int i=0; i<3; i++){
         if(abs(display_output[i] - testRGB[i]) > (float(allowed_difference_percent) / 100.0)) {
             display_error_output[i] = 1.0;
@@ -350,6 +346,70 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
             display_output = display_error_output;
         }
     }
+    return display_output;
+}
+
+// Main function
+void mainImage( out vec4 fragColor, in vec2 fragCoord )
+{
+    bool debug_conversion = false;
+    bool test_colorshift = true;
+
+    vec2 uv = fragCoord/iResolution.xy;
+    float size_of_space_degrees = 360.0;
+    float size_of_space_radians = 2.0 * pi;
+    float speed = 0.7;
+    float size_of_space = 2.0 * pi;
+    float time = mod(iTime*speed, size_of_space);
+    float circle_one_third = 120.0 * radian;
+    float circle_two_thirds = 240.0 * radian;
+    float brightness = sin(mod(iTime*0.13, size_of_space))/2.0;
+
+    vec3 display_output;
+    vec3 testRGB;
+
+
+
+    // Use white as the test color
+    //vec3 testRGB = white; 
+
+    // User red as the test color
+    //vec3 testRGB = red;
+
+    // Vary test color
+    float sin_offset_0 = normalize_trig_function(sin(time));
+    float sin_offset_1 = normalize_trig_function(sin(time+circle_one_third));
+    float sin_offset_2 = normalize_trig_function(sin(time+circle_two_thirds));
+    testRGB = vec3(sin_offset_2, sin_offset_1, sin_offset_0) + brightness;
+    testRGB = clamp(testRGB, 0.0, 1.0);
+    
+
+    // Import texture
+    vec4 color = texture(iChannel0, uv);
+    testRGB = color.xyz;
+
+
+    if(debug_conversion){
+        display_output = debug_compare_conversion(testRGB, debug_convert_colors(testRGB), uv);
+    }
+
+    if(test_colorshift){
+        //float lightness = brightness;
+        float lightness = 1.0;
+        float chroma = 1.0;
+        
+        //float hue_angle = time * degree;
+        //float hue_angle = mod(iTime, 360.0);
+        //float hue_angle = pow(2.0, 6.0) * sin(iTime);
+        float hue_angle = -pow(2.0, 5.0) * (iTime);
+        //(L, C, H)
+        display_output = color_shift(testRGB, lightness, chroma, hue_angle);
+    }
+
+ 
+
+
+    
 
     fragColor = vec4(display_output, 1.0);
 }
@@ -360,8 +420,13 @@ void main() {
     vec4 color;
     iTime = u_time;
     iResolution = u_resolution;
-    //iChannel0 = u_tex0;
     mainImage(color, gl_FragCoord.xy);
     FragColor = color;
 }
 // End GLSL viewer section 2
+
+
+/*
+* Reference
+* https://levien.com/hlc.html
+*/

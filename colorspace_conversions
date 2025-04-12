@@ -18,8 +18,8 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord);
 // End GLSL viewer Section 1
 
 #define PI 3.14159265358979323846264338327950288419716939937510582097494459230781640628
-#define RAD_TO_DEGREE PI/180.0
 #define DEGREE_TO_RAD 180.0/PI
+#define RAD_TO_DEGREE PI/180.0
 
 const vec3 red =       vec3(1.0, 0.0, 0.0);
 const vec3 green =     vec3(0.0, 1.0, 0.0);
@@ -30,8 +30,9 @@ const vec3 zeroes3d =  white;
 const vec3 ones3d =    black;
 
 const float pi = PI;
-const float radian = DEGREE_TO_RAD;
-const float degree = RAD_TO_DEGREE;
+//not working as intended
+const float degree = DEGREE_TO_RAD;
+const float radian = RAD_TO_DEGREE;
 
 
 vec3 srgb_to_linear_rgb(vec3 c) {
@@ -152,7 +153,7 @@ vec3 LabToHLC(vec3 lab) {
     float H = atan(b, a) * 180.0 / 3.14159265359; 
 
 // additional code
-    H = mod(H, 360.0);
+    H = mod(H, 2.0*pi);
 //
 
     return vec3(L, C, H); // CIEHLC (L, C, H)
@@ -182,7 +183,7 @@ vec3 HLCToLab(vec3 hlc) {
 // Confirm this is the correct colorspace
 /////////////////////////
 // Approxmiate conversion
-vec3 RGBToApproxHCL(vec3 rgb) {
+vec3 ApproxRGBToHCL(vec3 rgb) {
     // Assume rgb is linear
     float L = dot(rgb, vec3(0.2126, 0.7152, 0.0722)); // Perceived luminance
     float maxC = max(max(rgb.r, rgb.g), rgb.b);
@@ -281,15 +282,35 @@ float normalize_trig_function(float input_value){
 }
 
 
-vec3 color_shift(vec3 testRGB, float lightness, float chroma, float hue){
+vec3 color_shift_hlc(vec3 testRGB, float lightness, float chroma, float hue){
     //(L, C, H)
+    // 0-1, 0-1, 0-360?
     vec3 color_HLC;
     vec3 display_output;
     color_HLC = LabToHLC(XYZToLab(LinearRGBToXYZ(testRGB)));
-    color_HLC[2] += hue; 
+    color_HLC[0] += lightness;
+    color_HLC[1] += chroma;
+    color_HLC[2] += hue;
+    color_HLC[2] = mod(color_HLC[2], 360.0);
     display_output = XYZToLinearRGB(LabToXYZ(HLCToLab(color_HLC)));
     return display_output;
 }
+
+
+vec3 color_shift_hlc_approx(vec3 testRGB, float lightness, float chroma, float hue){
+    //(L, C, H)
+    // 0-1, 0-1, 0-360?
+    vec3 color_HLC;
+    vec3 display_output;
+    color_HLC = ApproxRGBToHCL(testRGB);
+    color_HLC[0] += lightness;
+    color_HLC[1] += chroma;
+    color_HLC[2] += hue; 
+    color_HLC[2] = mod(color_HLC[2], 360.0);
+    display_output = ApproxHCLtoRGB(color_HLC);
+    return display_output;
+}
+
 
 
 vec3 debug_convert_colors(vec3 testRGB){
@@ -312,7 +333,7 @@ vec3 debug_convert_colors(vec3 testRGB){
     //display_output = XYZToLinearRGB(LabToXYZ(HLCToLab(LabToHLC(XYZToLab(LinearRGBToXYZ(testRGB))))));
 
     // Test direct RBG to HCL conversion & back using approxmiation
-    display_output = ApproxHCLtoRGB(RGBToApproxHCL(testRGB));
+    display_output = ApproxHCLtoRGB(ApproxRGBToHCL(testRGB));
 
     //display_output = clamp(display_output, 0.0, 1.0);
     return display_output;
@@ -353,7 +374,8 @@ vec3 debug_compare_conversion(vec3 testRGB, vec3 display_output, vec2 uv){
 void mainImage( out vec4 fragColor, in vec2 fragCoord )
 {
     bool debug_conversion = false;
-    bool test_colorshift = true;
+    bool test_colorshift_hlc = true;
+    bool test_colorshift_hlc_approx = false;
 
     vec2 uv = fragCoord/iResolution.xy;
     float size_of_space_degrees = 360.0;
@@ -393,7 +415,8 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         display_output = debug_compare_conversion(testRGB, debug_convert_colors(testRGB), uv);
     }
 
-    if(test_colorshift){
+    // Not really working
+    if(test_colorshift_hlc){
         //float lightness = brightness;
         float lightness = 1.0;
         float chroma = 1.0;
@@ -401,11 +424,25 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         //float hue_angle = time * degree;
         //float hue_angle = mod(iTime, 360.0);
         //float hue_angle = pow(2.0, 6.0) * sin(iTime);
-        float hue_angle = -pow(2.0, 5.0) * (iTime);
+        float hue_angle = -(iTime) * degree;
         //(L, C, H)
-        display_output = color_shift(testRGB, lightness, chroma, hue_angle);
+        display_output = color_shift_hlc(testRGB, lightness, chroma, hue_angle);
     }
 
+    // More or less works
+    if(test_colorshift_hlc_approx){
+        //float lightness = brightness;
+        float lightness = 1.0;
+        float chroma = 1.0;
+        
+        //float hue_angle = time * degree;
+        //float hue_angle = mod(iTime, 360.0);
+        //float hue_angle = pow(2.0, 6.0) * sin(iTime);
+        //float hue_angle = -pow(2.0, 6.0) * (iTime);
+        float hue_angle = -(iTime)*degree;
+        //(L, C, H)
+        display_output = color_shift_hlc_approx(testRGB, lightness, chroma, hue_angle);
+    }
  
 
 

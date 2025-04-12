@@ -34,6 +34,8 @@ const float pi = PI;
 const float degree = DEGREE_TO_RAD;
 const float radian = RAD_TO_DEGREE;
 
+const vec3 D65 = vec3(0.95047, 1.00000, 1.08883); // Reference white
+
 
 vec3 srgb_to_linear_rgb(vec3 c) {
     return mix(
@@ -97,9 +99,6 @@ vec3 XYZToLinearRGB(vec3 xyz) {
 
 // XYZ <-> CIE LAB
 // Level 2
-// Constants
-const vec3 D65 = vec3(0.95047, 1.00000, 1.08883); // Reference white
-
 // Helper function for XYZ <-> Lab
 float f_xyz(float t) {
     return (t > 0.008856) ? pow(t, 1.0 / 3.0) : (7.787 * t + 16.0 / 116.0);
@@ -138,6 +137,40 @@ vec3 LabToXYZ(vec3 lab) {
     return vec3(xr, yr, zr) * D65;
 }
 
+//  XYZ <-> CIEL_uv
+// Level 2
+vec3 XYZToCIELUV(vec3 xyz) {
+    // Reference white point (D65)
+    xyz /= D65; // Normalize XYZ by reference white
+
+    // Compute L*, u*, v*
+    float L = (xyz.y > 0.008856) ? (116.0 * pow(xyz.y, 1.0 / 3.0) - 16.0) : (903.3 * xyz.y);
+    float u = (4.0 * xyz.x) / (xyz.x + 15.0 * xyz.y + 3.0 * xyz.z);
+    float v = (9.0 * xyz.y) / (xyz.x + 15.0 * xyz.y + 3.0 * xyz.z);
+
+    return vec3(L, u, v);
+}
+
+vec3 CIELUVToXYZ(vec3 luv) {
+    float L = luv.x;
+    float u = luv.y;
+    float v = luv.z;
+
+    // Compute Y
+    float Y = (L > 8.0) ? pow((L + 16.0) / 116.0, 3.0) : L / 903.3;
+
+    // Compute u', v'
+    float u_prime = u - 0.197830011;
+    float v_prime = v - 0.468319994;
+
+    // Compute X and Z
+    float X = (Y == 0.0) ? 0.0 : (9.0 * Y * u_prime) / (4.0 * u_prime);
+    float Z = (Y == 0.0) ? 0.0 : (Y * (12.0 - 3.0 * u_prime - 20.0 * v_prime)) / (4.0 * v_prime);
+
+    return D65 * vec3(X, Y, Z); // Normalize XYZ by reference white
+}
+
+
 
 // Confirm this is the correct colorspace
 // CIE LAB <-> CIE HLC
@@ -169,12 +202,51 @@ vec3 HLCToLab(vec3 hlc) {
     float a = C * cos(H * 3.14159265359 / 180.0);
     float b = C * sin(H * 3.14159265359 / 180.0);
 
-// additional code
-    //a = mod(a, 360.0)-180.0;
-    //b = mod(b, 360.0)-180.0;
-//
-
     return vec3(L, a, b);
+}
+
+
+// CIE <-> HSLUV
+// Level 3
+vec3 CIELUVToHSLuv(vec3 luv) {
+    float L = luv.x;
+    float u = luv.y;
+    float v = luv.z;
+
+    // Compute chroma
+    float U = u - 0.197830011;
+    float V = v - 0.468319994;
+    float C = sqrt(U * U + V * V);
+
+    // Compute hue
+    float H = atan(V, U);
+    if (H < 0.0) H += 2.0 * 3.14159265358979323846;
+    H = degrees(H);
+
+    // Compute saturation
+    float S = (L > 0.0 && L < 100.0) ? (C / (L < 50.0 ? L + 50.0 : 100.0 - L)) : 0.0;
+
+    return vec3(H, S, L);
+}
+
+vec3 HSLuvToCIELUV(vec3 hsluv) {
+    float H = hsluv.x;
+    float S = hsluv.y;
+    float L = hsluv.z;
+
+    // Compute chroma
+    float C = S * (L < 50.0 ? L + 50.0 : 100.0 - L);
+    float X = C * cos(radians(H));
+    float Y = C * sin(radians(H));
+
+    // Compute u*, v*
+    float u = 0.197830011 + X;
+    float v = 0.468319994 + Y;
+
+    // Compute L*
+    float L_star = L;
+
+    return vec3(L_star, u, v);
 }
 
 
@@ -325,19 +397,26 @@ vec3 debug_convert_colors(vec3 testRGB){
     //display_output = XYZToLabToXYZ(testRGB);
     //display_output = LinearRGBToXYZToLinearRGB(testRGB);
 
-    // Test the first two levels of conversion
+    // Test RGB <-> HLC first two levels of conversion
     //display_output = XYZToLinearRGB(LabToXYZ(XYZToLab(LinearRGBToXYZ(testRGB))));
 
-    // Test the 2nd set of two levels of conversion
+    // Test RGB <-> HLC 2nd set of two levels of conversion
     //display_output = LabToXYZ(HLCToLab(LabToHLC(XYZToLab(testRGB))));
 
-    // Test all levels of conversion at once
+    // Test RGB <-> HLC all levels of conversion at once
     //display_output = XYZToLinearRGB(LabToXYZ(HLCToLab(LabToHLC(XYZToLab(LinearRGBToXYZ(testRGB))))));
 
-    // Test direct RBG to HCL conversion & back using approxmiation
-    display_output = ApproxHCLtoRGB(ApproxRGBToHCL(testRGB));
+    // Test direct RBG <-> HCL conversion using approxmiation
+    //display_output = ApproxHCLtoRGB(ApproxRGBToHCL(testRGB));
 
-    //display_output = clamp(display_output, 0.0, 1.0);
+    // Test RGB <-> HSLuv conversion 
+    // Test all levels
+    //display_output = XYZToLinearRGB(CIELUVToXYZ(HSLuvToCIELUV(CIELUVToHSLuv(XYZToCIELUV(LinearRGBToXYZ(testRGB))))));
+    // Test Level 3
+    display_output = HSLuvToCIELUV(CIELUVToHSLuv(testRGB));
+
+    // Restrict output colors to RGB values
+    display_output = clamp(display_output, 0.0, 1.0);
     return display_output;
 }
 
@@ -375,9 +454,9 @@ vec3 debug_compare_conversion(vec3 testRGB, vec3 display_output, vec2 uv){
 // Main function
 void mainImage( out vec4 fragColor, in vec2 fragCoord )
 {
-    bool debug_conversion = false;
+    bool debug_conversion = true;
     bool test_colorshift_hlc = false;
-    bool test_colorshift_hlc_approx = true;
+    bool test_colorshift_hlc_approx = false;
 
     vec2 uv = fragCoord/iResolution.xy;
     float size_of_space_degrees = 360.0;
@@ -410,7 +489,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 
     // Use importd texture as background
     vec4 color = texture(iChannel0, uv);
-    testRGB = color.xyz;
+    //testRGB = color.xyz;
 
 
     if(debug_conversion){
@@ -436,8 +515,8 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         //float lightness = brightness;
         //float lightness = 0.0;
         //float chroma = 0.0;
-        float lightness = sin(iTime * 0.13);
-        float chroma = sin(iTime * 0.7);
+        float lightness = sin(iTime * 0.13)*0.9;
+        float chroma = sin(iTime * 0.7)*0.9;
 
         //float hue_angle = time * degree;
         //float hue_angle = mod(iTime, 360.0);

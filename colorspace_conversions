@@ -306,6 +306,8 @@ vec3 color_shift_hlc_approx(vec3 testRGB, float lightness, float chroma, float h
     color_HLC[0] += lightness;
     color_HLC[1] += chroma;
     color_HLC[2] += hue; 
+    color_HLC[0] = clamp(color_HLC[0], 0.05, 0.95);
+    color_HLC[1] = clamp(color_HLC[1], 0.05, 0.95);
     color_HLC[2] = mod(color_HLC[2], 360.0);
     display_output = ApproxHCLtoRGB(color_HLC);
     return display_output;
@@ -374,8 +376,8 @@ vec3 debug_compare_conversion(vec3 testRGB, vec3 display_output, vec2 uv){
 void mainImage( out vec4 fragColor, in vec2 fragCoord )
 {
     bool debug_conversion = false;
-    bool test_colorshift_hlc = true;
-    bool test_colorshift_hlc_approx = false;
+    bool test_colorshift_hlc = false;
+    bool test_colorshift_hlc_approx = true;
 
     vec2 uv = fragCoord/iResolution.xy;
     float size_of_space_degrees = 360.0;
@@ -406,7 +408,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     testRGB = clamp(testRGB, 0.0, 1.0);
     
 
-    // Import texture
+    // Use importd texture as background
     vec4 color = texture(iChannel0, uv);
     testRGB = color.xyz;
 
@@ -415,7 +417,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         display_output = debug_compare_conversion(testRGB, debug_convert_colors(testRGB), uv);
     }
 
-    // Not really working
+    // Not really working. Limit on generated values?
     if(test_colorshift_hlc){
         //float lightness = brightness;
         float lightness = 1.0;
@@ -429,12 +431,14 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         display_output = color_shift_hlc(testRGB, lightness, chroma, hue_angle);
     }
 
-    // More or less works
+    // More or less works as intended
     if(test_colorshift_hlc_approx){
         //float lightness = brightness;
-        float lightness = 1.0;
-        float chroma = 1.0;
-        
+        //float lightness = 0.0;
+        //float chroma = 0.0;
+        float lightness = sin(iTime * 0.13);
+        float chroma = sin(iTime * 0.7);
+
         //float hue_angle = time * degree;
         //float hue_angle = mod(iTime, 360.0);
         //float hue_angle = pow(2.0, 6.0) * sin(iTime);

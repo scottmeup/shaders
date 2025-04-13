@@ -282,28 +282,35 @@ vec4 rgbToHpluv(float x, float y, float z, float a) {return rgbToHpluv( vec4(x,y
 vec4   luvToRgb(float x, float y, float z, float a) {return   luvToRgb( vec4(x,y,z,a) );}
 
 /*
-END HSLUV-GLSL
+hsluv[0] = hue [0-360]
+hsluv[1] = saturation [0-100]
+hsluv[2] = lightness [0-100]
 */
-void mainImage( out vec4 fragColor, in vec2 fragCoord )
-{
-    float pi = PI;
-    float two_pi = TWO_PI;
-    float speed = 100.0;
-    float time = iTime * speed;
-    float amplitude = 10.0;
-    float hue_angle = time;
-    float chromacity = 30.0;
-    float lightness = 0.0;
-    vec2 uv = fragCoord/iResolution.xy;
-    vec4 output_vector;
 
-    //hsluv[0] = hue angle  [0-360]?
-    //hsluv[1] = chromacity [0-100]?
-    //hsluv[2] = brightness [0-100]?
+void mainImage( out vec4 fragColor, in vec2 fragCoord )
+{   
+    vec2 uv = fragCoord/iResolution.xy;
     vec4 color_rgb = texture(iChannel0,uv);
     vec4 hsluv = rgbToHsluv(color_rgb);
-    hsluv[0] = mod(hsluv[0]+hue_angle, 360.0);
-    hsluv[1] = clamp(hsluv[1]+chromacity, 0.0, 100.0);
+    vec4 output_vector;
+    
+    float pi = PI;
+    float two_pi = TWO_PI;
+    float speed = 1.00;
+    float time = iTime * speed;
+    float amplitude = 25.0;
+    
+    float hue_angle = degrees(two_pi*time*0.23);
+    float saturation = sin(time*0.7)*amplitude;
+    float lightness = sin(time*0.17)*amplitude;
+
+    // Uncomment one of the below to keep that parameter fixed
+    //hue_angle = 0.0;
+    //saturation = 0.0;
+    //lightness = 0.0;
+
+    hsluv[0] = mod(hsluv[0]-hue_angle, 360.0);
+    hsluv[1] = clamp(hsluv[1]+saturation, 0.0, 100.0);
     hsluv[2] = clamp(hsluv[2]+lightness, 0.0, 100.0);
     output_vector = vec4(hsluvToRgb(hsluv));
     

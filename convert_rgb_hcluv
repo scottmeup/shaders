@@ -1,3 +1,16 @@
+#ifdef GLSLVIEWER
+#define u_tex0 iChannel0;
+uniform vec2 u_resolution;
+uniform vec2 u_mouse;
+uniform float u_time;
+uniform sampler2D u_tex0;
+vec2 iResolution;   // viewport resolution (in pixels)
+float iTime;        // shader playback time (in seconds)
+vec4 iMouse;        // mouse pixel coords (xy), click state (zw)
+out vec4 FragColor;         // Final color output
+void mainImage(out vec4 fragColor, in vec2 fragCoord);
+#endif
+
 #define PI 3.14159265358979323846;
 #define TWO_PI 2.0*PI;
 
@@ -316,3 +329,13 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     
     fragColor = output_vector;
 }
+
+#ifdef GLSLVIEWER
+void main() {
+    vec4 color;
+    iTime = u_time;
+    iResolution = u_resolution;
+    mainImage(color, gl_FragCoord.xy);
+    FragColor = color;
+}
+#endif

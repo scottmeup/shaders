@@ -30,12 +30,23 @@ const vec3 zeroes3d =  white;
 const vec3 ones3d =    black;
 
 const float pi = PI;
+const float circle_size = 360.0;
 //not working as intended
 const float degree = DEGREE_TO_RAD;
 const float radian = RAD_TO_DEGREE;
 
 const vec3 D65 = vec3(0.95047, 1.00000, 1.08883); // Reference white
 
+
+// Helper functions
+float wrap_to_space(float variable, float size_of_space) {
+    return mod(mod(variable, size_of_space) + size_of_space, size_of_space);
+}
+
+float maxChroma(float L) {
+    // Simple approximation: clip chroma based on lightness
+    return (L < 1.0 || L > 99.0) ? 0.0 : mix(0.0, 1.0, smoothstep(1.0, 99.0, L));
+}
 
 vec3 srgb_to_linear_rgb(vec3 c) {
     return mix(
@@ -52,6 +63,38 @@ vec3 linear_rgb_to_srgb(vec3 c) {
         step(0.0031308, c)
     );
 }
+
+
+
+// Interpolate HSLuv
+// Interpolation function for hue, handling circular wraparound
+float interpolateHue(float h1, float h2, float t) {
+    float delta = h2 - h1;
+
+    if (abs(delta) > 180.0) {
+        if (delta > 0.0)
+            delta -= 360.0;
+        else
+            delta += 360.0;
+    }
+
+    float result = h1 + t * delta;
+
+    // Wrap around [0, 360)
+    if (result < 0.0) result += 360.0;
+    if (result >= 360.0) result -= 360.0;
+
+    return result;
+}
+
+// Interpolate between two HSLuv colors (vec3(h, s, l))
+vec3 interpolateHSLuv(vec3 hsluvA, vec3 hsluvB, float t) {
+    float h = interpolateHue(hsluvA.x, hsluvB.x, t);
+    float s = mix(hsluvA.y, hsluvB.y, t);
+    float l = mix(hsluvA.z, hsluvB.z, t);
+    return vec3(h, s, l);
+}
+
 
 // sRGB <-> XYZ
 // Level 1
@@ -143,10 +186,16 @@ vec3 XYZToCIELUV(vec3 xyz) {
     // Reference white point (D65)
     xyz /= D65; // Normalize XYZ by reference white
 
+    float denom = xyz.x + (15.0 * xyz.y) + (3.0 * xyz.z);
+    float uPrime = (4.0 * xyz.x) / denom;
+    float vPrime = (9.0 * xyz.y) / denom;
+
     // Compute L*, u*, v*
     float L = (xyz.y > 0.008856) ? (116.0 * pow(xyz.y, 1.0 / 3.0) - 16.0) : (903.3 * xyz.y);
-    float u = (4.0 * xyz.x) / (xyz.x + 15.0 * xyz.y + 3.0 * xyz.z);
-    float v = (9.0 * xyz.y) / (xyz.x + 15.0 * xyz.y + 3.0 * xyz.z);
+    //float u = (4.0 * xyz.x) / (xyz.x + 15.0 * xyz.y + 3.0 * xyz.z);
+    //float v = (9.0 * xyz.y) / (xyz.x + 15.0 * xyz.y + 3.0 * xyz.z);
+    float u = 13.0 * L * (uPrime - 0.2009);
+    float v = 13.0 * L * (vPrime - 0.4610);
 
     return vec3(L, u, v);
 }
@@ -172,7 +221,6 @@ vec3 CIELUVToXYZ(vec3 luv) {
 
 
 
-// Confirm this is the correct colorspace
 // CIE LAB <-> CIE HLC
 // Level 3
 // Convert CIE Lab to CIE HLC
@@ -386,7 +434,6 @@ vec3 color_shift_hlc_approx(vec3 testRGB, float lightness, float chroma, float h
 }
 
 
-
 vec3 debug_convert_colors(vec3 testRGB){
     vec3 display_output;
     // Test all levels of conversion at once
@@ -451,12 +498,23 @@ vec3 debug_compare_conversion(vec3 testRGB, vec3 display_output, vec2 uv){
     return display_output;
 }
 
+vec3 color_interpolate_hsluv(vec3 color_rgb_0_pct, vec3 color_rgb_100_pct, float bias){
+    bias = clamp(bias, 0.0, 1.0);
+    color_rgb_0_pct = clamp(color_rgb_0_pct, 0.0, 1.0);
+    color_rgb_100_pct = clamp(color_rgb_100_pct, 0.0, 1.0);
+    vec3 color_hsluv_0_pct = CIELUVToHSLuv(XYZToCIELUV(LinearRGBToXYZ(color_rgb_0_pct)));
+    vec3 color_hsluv_100_pct = CIELUVToHSLuv(XYZToCIELUV(LinearRGBToXYZ(color_rgb_100_pct)));
+    vec3 display_output = XYZToLinearRGB(CIELUVToXYZ(interpolateHSLuv(color_hsluv_0_pct, color_hsluv_100_pct, bias)));
+    return clamp(display_output, 0.0, 1.0);
+}
+
 // Main function
 void mainImage( out vec4 fragColor, in vec2 fragCoord )
 {
-    bool debug_conversion = true;
+    bool debug_conversion = false;
     bool test_colorshift_hlc = false;
     bool test_colorshift_hlc_approx = false;
+    bool test_color_interpolate_hsluv = true;
 
     vec2 uv = fragCoord/iResolution.xy;
     float size_of_space_degrees = 360.0;
@@ -511,6 +569,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     }
 
     // More or less works as intended
+    // Green & blues are incorrect sometimes
     if(test_colorshift_hlc_approx){
         //float lightness = brightness;
         //float lightness = 0.0;
@@ -525,6 +584,11 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         float hue_angle = -(iTime)*degree;
         //(L, C, H)
         display_output = color_shift_hlc_approx(testRGB, lightness, chroma, hue_angle);
+    }
+
+    // Really not working
+    if(test_color_interpolate_hsluv){
+        display_output = color_interpolate_hsluv(blue, white, normalize_trig_function(sin(iTime)));
     }
  
 
@@ -547,6 +611,11 @@ void main() {
 
 
 /*
-* Reference
-* https://levien.com/hlc.html
+Reference
+https://levien.com/hlc.html
+
+LAB Values:
+L should be between 0, 100
+a, b technically unbound but often clamped to -128, +127
+https://en.wikipedia.org/wiki/CIELAB_color_space#Range_of_coordinates
 */

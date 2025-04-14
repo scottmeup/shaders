@@ -1,3 +1,4 @@
+#version 420
 #ifdef GLSLVIEWER
 #define u_tex0 iChannel0;
 uniform vec2 u_resolution;
@@ -13,6 +14,13 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord);
 
 #define PI 3.14159265358979323846;
 #define TWO_PI 2.0*PI;
+uniform float pi = PI;
+uniform float two_pi = TWO_PI;
+//float prime[25] = float[32](2.0, 3.0, 5.0, 7.0, 11.0, 13.0, 17.0, 19.0, 23.0, 29.0, 31.0, 37.0, 41.0, 43.0, 47.0, 53.0, 59.0, 61.0, 67.0, 71.0, 73.0, 79.0, 83.0, 89.0, 97.0);
+uniform vec3 rgb_red = vec3(1.0, 0.0, 0.0);
+uniform vec3 rgb_green = vec3(0.0, 1.0, 0.0);
+uniform vec3 rgb_blue = vec3(0.0, 0.0, 1.0);
+
 
 vec3 hsluv_intersectLineLine(vec3 line1x, vec3 line1y, vec3 line2x, vec3 line2y) {
     return (line1y - line2y) / (line2x - line1x);
@@ -294,40 +302,159 @@ vec4 hpluvToRgb(float x, float y, float z, float a) {return hpluvToRgb( vec4(x,y
 vec4 rgbToHpluv(float x, float y, float z, float a) {return rgbToHpluv( vec4(x,y,z,a) );}
 vec4   luvToRgb(float x, float y, float z, float a) {return   luvToRgb( vec4(x,y,z,a) );}
 
-/*
-hsluv[0] = hue [0-360]
-hsluv[1] = saturation [0-100]
-hsluv[2] = lightness [0-100]
-*/
 
-void mainImage( out vec4 fragColor, in vec2 fragCoord )
-{   
-    vec2 uv = fragCoord/iResolution.xy;
-    vec4 color_rgb = texture(iChannel0,uv);
-    vec4 hsluv = rgbToHsluv(color_rgb);
+vec3 srgb_to_linear_rgb(vec3 c) {
+    return mix(
+        c / 12.92,
+        pow((c + 0.055) / 1.055, vec3(2.4)),
+        step(0.04045, c)
+    );
+}
+
+vec3 linear_rgb_to_srgb(vec3 c) {
+    return mix(
+        c * 12.92,
+        1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055,
+        step(0.0031308, c)
+    );
+}
+
+vec3 clamp_hsluv(vec3 hsluv){
+    hsluv[0] = mod(hsluv[0], 360.0);                   // hue [0-360]
+    hsluv[1] = clamp(hsluv[1], 0.0, 100.0);     // saturation [0-100]
+    hsluv[2] = clamp(hsluv[2], 0.0, 100.0);      // lightness [0-100]
+    return hsluv;
+}
+
+float normalize_trig_function(float input_value){
+    input_value += 1.0;
+    input_value /= 2.0;
+    return input_value;
+}
+
+
+// Interpolate HSLuv
+// Interpolation function for hue, handling circular wraparound
+float interpolate_hue(float h1, float h2, float t) {
+    float delta = h2 - h1;
+
+    if (abs(delta) > 180.0) {
+        if (delta > 0.0)
+            delta -= 360.0;
+        else
+            delta += 360.0;
+    }
+
+    float result = h1 + t * delta;
+
+    // Wrap around [0, 360)
+    if (result < 0.0) result += 360.0;
+    if (result >= 360.0) result -= 360.0;
+
+    return result;
+}
+
+// Interpolate between two HSLuv colors (vec3(h, s, l))
+vec3 interpolate_hsluv(vec3 hsluvA, vec3 hsluvB, float t) {
+    float h = interpolate_hue(hsluvA.x, hsluvB.x, t);
+    float s = mix(hsluvA.y, hsluvB.y, t);
+    float l = mix(hsluvA.z, hsluvB.z, t);
+    return vec3(h, s, l);
+}
+
+
+vec3 test_hsl_parameters(float time, float amplitude, vec3 hsluv){
+    amplitude *= 100.0;
     vec4 output_vector;
-    
-    float pi = PI;
-    float two_pi = TWO_PI;
-    float speed = 1.00;
-    float time = iTime * speed;
-    float amplitude = 25.0;
-    
-    float hue_angle = degrees(two_pi*time*0.23);
-    float saturation = sin(time*0.7)*amplitude;
-    float lightness = sin(time*0.17)*amplitude;
+    float hue_angle;
+    float saturation;
+    float lightness;
+    float cycle_modifier = 20.0;
+
+    bool test01 = false;
+    bool test02 = false;
+    bool test03 = false;
+    bool test04 = true;
+
+    if(test01){
+        hue_angle = degrees(two_pi*time*0.23);
+    }
+    if(test02){
+        lightness = -time*0.17*amplitude;
+    }
+    if(test03){
+        saturation = -time*0.7*amplitude;
+    }
+    if(test04){
+        hue_angle = degrees(two_pi*time*0.23);
+        saturation = sin(time*0.7)*amplitude;
+        lightness = sin(time*0.17)*amplitude;
+    }
 
     // Uncomment one of the below to keep that parameter fixed
     //hue_angle = 0.0;
     //saturation = 0.0;
     //lightness = 0.0;
 
-    hsluv[0] = mod(hsluv[0]-hue_angle, 360.0);
-    hsluv[1] = clamp(hsluv[1]+saturation, 0.0, 100.0);
-    hsluv[2] = clamp(hsluv[2]+lightness, 0.0, 100.0);
-    output_vector = vec4(hsluvToRgb(hsluv));
+    hsluv[0] -= hue_angle;            // hue [0-360]
+    hsluv[1] += saturation;    // saturation [0-100]
+    hsluv[2] += lightness;      // lightness [0-100]
+
+    if(test02 || test03){
+        hsluv[0] = mod(hsluv[0], 360.0);
+        hsluv[1] = mod(hsluv[1], 100.0 - (2.0*cycle_modifier)) + cycle_modifier;
+        hsluv[2] = mod(hsluv[2], 100.0 - (2.0*cycle_modifier)) + cycle_modifier;
+    }
+
+
+    return hsluv;
+}
+
+vec3 test_hsl_interpulation(vec3 color_hsluv_01, vec3 color_hsluv_02, float time){
+    float shift_amount = normalize_trig_function(sin(time));
+    return interpolate_hsluv(color_hsluv_01, color_hsluv_02, shift_amount);
+}
+
+
+void mainImage( out vec4 fragColor, in vec2 fragCoord )
+{   
+    vec2 uv = fragCoord/iResolution.xy;
+    vec3 output_vector;
+    vec3 color_rgb;
+    vec3 color_hsluv;
     
-    fragColor = output_vector;
+    float speed = 1.00;
+    float time = iTime * speed;
+    float amplitude = 0.25;
+
+    bool load_texture = false;
+    bool debug_test_hsl_parameters = false;
+    bool debug_test_hsl_interpolation = true;
+    
+    if(load_texture){
+        color_rgb = texture(iChannel0,uv).xyz;
+        color_hsluv = rgbToHsluv(color_rgb);
+    }
+
+
+
+
+    if(debug_test_hsl_parameters){
+        color_hsluv = test_hsl_parameters(time, amplitude, color_hsluv);
+    }
+
+    if(debug_test_hsl_interpolation){
+        vec3 rgb_color_1 = rgb_red;
+        vec3 rgb_color_2 = rgb_blue;
+        vec3 color_hsluv_1 = rgbToHsluv(rgb_color_1);
+        vec3 color_hsluv_2 = rgbToHsluv(rgb_color_2);
+        color_hsluv = test_hsl_interpulation(color_hsluv_1, color_hsluv_2, time);
+    }
+
+
+    clamp_hsluv(color_hsluv);
+    output_vector = vec3(hsluvToRgb(color_hsluv));
+    fragColor = vec4(output_vector.xyz, 1.0);
 }
 
 #ifdef GLSLVIEWER

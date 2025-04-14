@@ -1126,7 +1126,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     if(head_is_defined){
         head_factor = 1.0;
         if(color_combine_pulse_head_with_fade_in){
-            head_factor = 1.0 - (distance_of_current_location_behind_pulse_as_percent_of_display / size_pulse_head_as_percent_of_display);
+            head_factor = (distance_of_current_location_behind_pulse_as_percent_of_display / size_pulse_head_as_percent_of_display);
         }
     }
 
@@ -1215,10 +1215,11 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
             // head section
             if(head_factor > 0.0){
                 // Apply head
-                display_output_hsl = interpolate_hsluv(hsl_pulse, hsl_fade_in, head_factor);
+                display_output_hsl = interpolate_hsluv(hsl_fade_in, hsl_pulse, head_factor);
             }
             // the rest
             else{
+                float ratio_color;
                 // Apply fade-in
                 vec3 display_output_hsl_fade_in = vec3(hsl_fade_in.xy, fade_in_factor*hsl_fade_in.z);
                 // Apply decay trail
@@ -1226,24 +1227,28 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
                 vec3 display_output_hsl_pulse = vec3(hsl_pulse.xy, decay_factor*hsl_pulse.z);
 
                 //float pulse_to_fade_in_brightness_ratio = display_output_hsl_fade_in.z / display_output_hsl_pulse.z;
-                float pulse_to_fade_in_brightness_ratio = display_output_hsl_pulse.z / display_output_hsl_fade_in.z;
-                pulse_to_fade_in_brightness_ratio = clamp(pulse_to_fade_in_brightness_ratio, 0.0, 1.0);
-                display_output_hsl = interpolate_hsluv(display_output_hsl_fade_in, display_output_hsl_pulse, pulse_to_fade_in_brightness_ratio);
+                ratio_color = display_output_hsl_pulse.z / (display_output_hsl_pulse.z + display_output_hsl_fade_in.z);
+                ratio_color = clamp(ratio_color, 0.0, 1.0);
+                display_output_hsl = interpolate_hsluv(display_output_hsl_fade_in, display_output_hsl_pulse, ratio_color);
                 
                 float brightness = 0.0;
                 // Calculate brightness before, or after applying background
                 if(color_brightness_cutoff_includes_background_brightness){
-                    display_output_vector = restrict_vec3_from_0_to_1(display_output_vector + rgb_background);
-                    brightness = get_brightness_of_color(display_output_vector);
+                    ratio_color = display_output_hsl.z / (display_output_hsl.z + hsl_background.z);
+                    display_output_hsl.x = interpolate_hue(display_output_hsl.x, hsl_background.x, ratio_color);
+                    display_output_hsl.z += hsl_background.z;
+                    brightness = display_output_hsl.z;
                 }
                 else{
-                    brightness = get_brightness_of_color(display_output_vector);
-                    display_output_vector = restrict_vec3_from_0_to_1(display_output_vector + rgb_background);
+                    brightness = display_output_hsl.z;
+                    ratio_color = display_output_hsl.z / (display_output_hsl.z + hsl_background.z);
+                    //display_output_hsl[0] = interpolate_hue(display_output_hsl.x, hsl_background.x, ratio_color); //BUG HERE
+                    display_output_hsl.z += hsl_background.z;
                 }
                 
                 // Apply alternate color if calculated brightness is below the minimum specified
                 if(brightness < color_brightness_cutoff){
-                    display_output_vector = rgb_pause;
+                    //display_output_vector = rgb_pause;
                 }
   
             }

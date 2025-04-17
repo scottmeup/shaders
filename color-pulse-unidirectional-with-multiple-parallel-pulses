@@ -22,7 +22,7 @@
 const int size_of_display_in_columns = 11;    // how many parallel pulses to run
 const bool direction_movement_horizontal = false;
 const bool direction_movement_reversed = false;
-const float duration_of_pause = 10.0;   //  Time between the front of the pulse leaving the screen and the next pulse appearing 
+const float duration_of_pause = 7.0;   //  Time between the front of the pulse leaving the screen and the next pulse appearing 
 const float duration_of_pulse = 5.0;    // Time taken for the front of the pulse to run across the display
 const float speed_global_modifier = 1.0;    // When set to 1.0, cycle will play at 1 second per unit of duration
 //
@@ -43,36 +43,73 @@ out vec4 FragColor;         // Final color output
 void mainImage(out vec4 fragColor, in vec2 fragCoord);
 #endif
 
-#define PI 3.14159265358979323846;
-#define TWO_PI 2.0*PI;
+#define PI 3.14159265358979323846
+#define TWO_PI 2.0*PI
 
-uniform vec3 ones3d = vec3(1.0, 1.0, 1.0);
-uniform vec3 zeros3d = vec3(0.0, 0.0, 0.0);
-uniform float one_third = (1.0 / 3.0);
-uniform float two_thirds = (2.0 / 3.0);
-uniform vec3 red = vec3(1.0, 0.0, 0.0);
-uniform vec3 green = vec3(0.0, 1.0, 0.0);
-uniform vec3 blue = vec3(0.0, 0.0, 1.0);
-uniform float pi = PI;
-uniform float two_pi = TWO_PI;
+const vec3 ones3d = vec3(1.0, 1.0, 1.0);
+const vec3 zeros3d = vec3(0.0, 0.0, 0.0);
+const float one_third = (1.0 / 3.0);
+const float two_thirds = (2.0 / 3.0);
+const vec3 red = vec3(1.0, 0.0, 0.0);
+const vec3 green = vec3(0.0, 1.0, 0.0);
+const vec3 blue = vec3(0.0, 0.0, 1.0);
+const float pi = PI;
+const float two_pi = TWO_PI;
 
-uniform bool debug_master = true;
-uniform bool debug_add_overlay_colorshft = false;
+const bool debug_master = true;
+const bool debug_add_overlay_colorshft = false;
 
-uniform bool debug_background = true;
-uniform bool debug_decay_and_fade_in = false;
-uniform bool debug_fade_in = false;                 // I think it looks better with this set to false
-uniform bool debug_show_LED_map = false;
-uniform bool debug_show_distance_behind_pulse = false;
-uniform bool debug_show_distance_in_front_of_pulse = false;
-uniform bool debug_define_led_element = false;
-uniform bool debug_head = false;
+const bool debug_background = false;
+const bool debug_decay_and_fade_in = false;
+const bool debug_fade_in = false;                 // I think it looks better with this set to false
+const bool debug_show_LED_map = false;
+const bool debug_show_distance_behind_pulse = false;
+const bool debug_show_distance_in_front_of_pulse = false;
+const bool debug_define_led_element = false;
+const bool debug_head = false;
 
-uniform bool debug_show_intended_output = false;
-uniform bool debug_show_intended_output_hsluv = true;
+const bool debug_show_intended_output = false;
+const bool debug_show_intended_output_hsluv = true;
 
 
-
+const int hsluv_max_lightness_lut_size = 360;
+const float hsluv_max_lightness_lut[hsluv_max_lightness_lut_size] = float[](
+    54.400000, 54.300000, 54.200000, 54.100000, 54.000000, 53.900000, 53.800000, 53.700000, 53.600000, 53.500000,
+    53.400000, 53.300000, 53.200000, 54.100000, 55.000000, 56.000000, 56.900000, 57.800000, 58.600000, 59.400000,
+    60.200000, 61.000000, 61.700000, 62.400000, 63.100000, 63.800000, 64.500000, 65.100000, 65.700000, 66.400000,
+    67.000000, 67.600000, 68.100000, 68.700000, 69.300000, 69.800000, 70.400000, 70.900000, 71.500000, 72.000000,
+    72.500000, 73.000000, 73.500000, 74.100000, 74.600000, 75.100000, 75.600000, 76.100000, 76.500000, 77.000000,
+    77.500000, 78.000000, 78.500000, 79.000000, 79.500000, 79.900000, 80.400000, 80.900000, 81.400000, 81.900000,
+    82.400000, 82.900000, 83.400000, 83.900000, 84.400000, 84.900000, 85.400000, 85.900000, 86.400000, 86.900000,
+    87.500000, 88.000000, 88.500000, 89.100000, 89.600000, 90.200000, 90.800000, 91.400000, 92.000000, 92.600000,
+    93.200000, 93.800000, 94.500000, 95.100000, 95.800000, 96.500000, 97.100000, 96.900000, 96.600000, 96.400000,
+    96.200000, 96.000000, 95.800000, 95.600000, 95.400000, 95.200000, 95.000000, 94.800000, 94.600000, 94.400000,
+    94.200000, 94.000000, 93.700000, 93.500000, 93.300000, 93.100000, 92.900000, 92.700000, 92.500000, 92.300000,
+    92.000000, 91.800000, 91.600000, 91.400000, 91.200000, 90.900000, 90.700000, 90.500000, 90.200000, 90.000000,
+    89.700000, 89.500000, 89.200000, 89.000000, 88.700000, 88.400000, 88.200000, 87.900000, 87.700000, 87.800000,
+    87.900000, 88.000000, 88.100000, 88.200000, 88.200000, 88.300000, 88.400000, 88.500000, 88.500000, 88.600000,
+    88.700000, 88.700000, 88.800000, 88.800000, 88.900000, 89.000000, 89.000000, 89.100000, 89.100000, 89.200000,
+    89.200000, 89.300000, 89.300000, 89.400000, 89.400000, 89.500000, 89.500000, 89.600000, 89.600000, 89.700000,
+    89.700000, 89.800000, 89.800000, 89.800000, 89.900000, 89.900000, 90.000000, 90.000000, 90.100000, 90.100000,
+    90.100000, 90.200000, 90.200000, 90.300000, 90.300000, 90.400000, 90.400000, 90.400000, 90.500000, 90.500000,
+    90.600000, 90.600000, 90.600000, 90.700000, 90.700000, 90.800000, 90.800000, 90.900000, 90.900000, 90.900000,
+    91.000000, 91.000000, 91.100000, 90.700000, 90.300000, 89.900000, 89.400000, 89.000000, 88.600000, 88.200000,
+    87.800000, 87.300000, 86.900000, 86.500000, 86.100000, 85.700000, 85.300000, 84.900000, 84.400000, 84.000000,
+    83.600000, 83.200000, 82.800000, 82.300000, 81.900000, 81.500000, 81.100000, 80.600000, 80.200000, 79.800000,
+    79.300000, 78.900000, 78.400000, 77.900000, 77.500000, 77.000000, 76.500000, 76.000000, 75.500000, 75.000000,
+    74.500000, 74.000000, 73.400000, 72.900000, 72.300000, 71.800000, 71.200000, 70.600000, 70.000000, 69.300000,
+    68.700000, 68.000000, 67.300000, 66.600000, 65.900000, 65.100000, 64.300000, 63.500000, 62.600000, 61.700000,
+    60.700000, 59.800000, 58.700000, 57.600000, 56.500000, 55.200000, 53.900000, 52.500000, 51.000000, 49.400000,
+    47.700000, 45.700000, 43.600000, 41.300000, 38.600000, 38.100000, 38.100000, 38.200000, 38.200000, 38.200000,
+    38.200000, 38.200000, 38.500000, 39.300000, 40.200000, 41.000000, 41.700000, 42.500000, 43.200000, 43.900000,
+    44.600000, 45.300000, 45.900000, 46.600000, 47.200000, 47.800000, 48.400000, 49.000000, 49.600000, 50.200000,
+    50.800000, 51.400000, 51.900000, 52.500000, 53.000000, 53.600000, 54.100000, 54.700000, 55.200000, 55.700000,
+    56.300000, 56.800000, 57.300000, 57.800000, 58.400000, 58.900000, 59.400000, 59.900000, 60.300000, 60.100000,
+    59.900000, 59.800000, 59.600000, 59.400000, 59.300000, 59.100000, 59.000000, 58.900000, 58.700000, 58.600000,
+    58.500000, 58.300000, 58.200000, 58.100000, 58.000000, 57.900000, 57.700000, 57.600000, 57.500000, 57.400000,
+    57.300000, 57.200000, 57.100000, 57.000000, 56.900000, 56.800000, 56.700000, 56.600000, 56.500000, 56.400000,
+    56.300000, 56.200000, 56.100000, 56.000000, 55.900000, 55.800000, 55.700000, 55.600000, 55.500000, 55.400000,
+    55.400000, 55.300000, 55.200000, 55.100000, 55.000000, 54.900000, 54.800000, 54.700000, 54.600000, 54.500000);
 
 
 struct Pulse_settings 
@@ -467,6 +504,7 @@ float normalize_trig_function(float input_value){
 float interpolate_hue(float h1, float h2, float t) {
     float delta = h2 - h1;
 
+    // If calculated difference in angle is more than 1/2 a circle 
     if (abs(delta) > 180.0) {
         if (delta > 0.0)
             delta -= 360.0;
@@ -477,10 +515,24 @@ float interpolate_hue(float h1, float h2, float t) {
     float result = h1 + t * delta;
 
     // Wrap around [0, 360)
-    if (result < 0.0) result += 360.0;
-    if (result >= 360.0) result -= 360.0;
+    result = mod(result, 360.0);
+    //if (result < 0.0) result += 360.0;
+    //if (result >= 360.0) result -= 360.0;
+
+    // some debug
+    if(t>1.0 || t<0.0){
+        result = sin(iTime)*360.0;
+    }
 
     return result;
+}
+
+
+// Return the max lightness for a hue angle that doesn't result in diminished chroma
+float get_max_safe_lightness(float hue) {
+    int idx_above = int(mod(ceil(hue), 360.0));
+    int idx_below = int(mod(floor(hue), 360.0));
+    return min(hsluv_max_lightness_lut[idx_below], hsluv_max_lightness_lut[idx_above]);
 }
 
 // Interpolate between two HSLuv colors (vec3(h, s, l))
@@ -1212,47 +1264,103 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         }
         
         if(debug_show_intended_output_hsluv){
+            float color_pulse_minimum_brightness_value = color_pulse_minimum_brightness_percent * 100.0;
+            float decay_value=(decay_factor*hsl_pulse.z);
+            float ratio_brightness_pulse;
+            float ratio_brightness_fade_in;
+            float ratio_brightness_background;
+            float ratio_brightness_fade_in_to_pulse;
+            float value_brightness_total;
+            float brightness;
+            float display_output_hsl_hue;
+            float display_output_hsl_saturation;
+            float display_output_hsl_lightness; 
+            float hsl_hue_pulse = hsl_pulse[0];
+            float hsl_hue_fade_in = hsl_fade_in[0];
+            float hsl_hue_background = hsl_background[0];
+            vec3 display_output_hsl_pulse;
+            vec3 display_output_hsl_fade_in;
+
             // head section
             if(head_factor > 0.0){
                 // Apply head
                 display_output_hsl = interpolate_hsluv(hsl_fade_in, hsl_pulse, head_factor);
             }
-            // the rest
+            // non-head section
             else{
-                float ratio_color;
                 // Apply fade-in
-                vec3 display_output_hsl_fade_in = vec3(hsl_fade_in.xy, fade_in_factor*hsl_fade_in.z);
+                display_output_hsl_fade_in = vec3(hsl_fade_in.xy, fade_in_factor*hsl_fade_in.z);
                 // Apply decay trail
-                display_output_vector = display_output_vector + (max((decay_factor * rgb_pulse), (color_pulse_minimum_brightness_percent * rgb_pulse)));
-                vec3 display_output_hsl_pulse = vec3(hsl_pulse.xy, decay_factor*hsl_pulse.z);
+                display_output_hsl_pulse = vec3(hsl_pulse.xy, max(decay_value, color_pulse_minimum_brightness_value));
 
-                //float pulse_to_fade_in_brightness_ratio = display_output_hsl_fade_in.z / display_output_hsl_pulse.z;
-                ratio_color = display_output_hsl_pulse.z / (display_output_hsl_pulse.z + display_output_hsl_fade_in.z);
-                ratio_color = clamp(ratio_color, 0.0, 1.0);
-                display_output_hsl = interpolate_hsluv(display_output_hsl_fade_in, display_output_hsl_pulse, ratio_color);
-                
-                float brightness = 0.0;
                 // Calculate brightness before, or after applying background
                 if(color_brightness_cutoff_includes_background_brightness){
-                    ratio_color = display_output_hsl.z / (display_output_hsl.z + hsl_background.z);
-                    display_output_hsl.x = interpolate_hue(display_output_hsl.x, hsl_background.x, ratio_color);
-                    display_output_hsl.z += hsl_background.z;
-                    brightness = display_output_hsl.z;
+                    value_brightness_total = display_output_hsl_fade_in[2] + display_output_hsl_pulse[2] + hsl_background[2];
                 }
                 else{
-                    brightness = display_output_hsl.z;
-                    ratio_color = display_output_hsl.z / (display_output_hsl.z + hsl_background.z);
-                    //display_output_hsl[0] = interpolate_hue(display_output_hsl.x, hsl_background.x, ratio_color); //BUG HERE
-                    display_output_hsl.z += hsl_background.z;
+                    value_brightness_total = display_output_hsl_fade_in[2] + display_output_hsl_pulse[2];
                 }
+
+                //float pulse_to_fade_in_brightness_ratio = display_output_hsl_fade_in.z / display_output_hsl_pulse.z;
+                ratio_brightness_fade_in = display_output_hsl_fade_in[2] / value_brightness_total;
+                ratio_brightness_pulse = display_output_hsl_pulse[2] / value_brightness_total;
+                ratio_brightness_background = hsl_background[2] / value_brightness_total;
+                ratio_brightness_fade_in_to_pulse = ratio_brightness_fade_in / (ratio_brightness_fade_in + ratio_brightness_pulse);
+                ratio_brightness_fade_in = clamp(ratio_brightness_fade_in, 0.0, 1.0);
+                ratio_brightness_pulse = clamp(ratio_brightness_pulse, 0.0, 1.0);
+                ratio_brightness_background = clamp(ratio_brightness_background, 0.0, 1.0);
+                
+
+                display_output_hsl_hue = interpolate_hue(hsl_hue_fade_in, hsl_hue_pulse, ratio_brightness_fade_in_to_pulse);
+                display_output_hsl_saturation = max((hsl_fade_in[1]), (hsl_pulse[1]));
+                display_output_hsl_lightness  = max((hsl_fade_in[2] * fade_in_factor), (hsl_pulse[2] * decay_factor));
+                display_output_hsl = vec3(display_output_hsl_hue, display_output_hsl_saturation, display_output_hsl_lightness);
+                //display_output_hsl = interpolate_hsluv(display_output_hsl_fade_in, display_output_hsl_pulse, 1.0);
+
+/*
+
+                else{
+                    brightness = display_output_hsl.z;
+                    ratio_color = (hsl_background.z / (display_output_hsl.z + hsl_background.z));
+                    float hue_background = hsl_background[0];
+                    float hue_display_output = display_output_hsl[0];
+                    hue_display_output = clamp(hue_display_output, 0.0, 360.0);
+                    hue_background = clamp(hue_background, 0.0, 360.0);
+                    
+                    //hue_background = sin(iTime/1.0) * (180.0);
+                    //hue_display_output = sin(iTime/100.0) * 360.0;
+                    
+                    // 0.0 = display, 1.0 = background
+                    ratio_color = 1.0;
+
+                    float hue_display_output_blended_background = interpolate_hue(hue_display_output, hue_background, ratio_color);
+                    //hue_display_output_blended_background = clamp(hue_display_output_blended_background, -360.0, 360.0);
+                    display_output_hsl[0] = hue_display_output_blended_background;
+
+                    //display_output_hsl = interpolate_hsluv(display_output_hsl, hsl_background, ratio_color);
+
+
+                    //display_output_hsl[0] = interpolate_hue(display_output_hsl.x, hsl_background.x, ratio_color);  //BUG HERE
+                    //display_output_hsl[0] = clamp(interpolate_hue(display_output_hsl[0], hsl_background[0], ratio_color), -360.0, 360.0); //BUG HERE
+                    //display_output_hsl.z += hsl_background.z;
+                }
+
+                */
                 
                 // Apply alternate color if calculated brightness is below the minimum specified
-                if(brightness < color_brightness_cutoff){
-                    //display_output_vector = rgb_pause;
+                if(value_brightness_total < color_brightness_cutoff){
+                    display_output_hsl = hsl_pause;
                 }
-  
+
+
             }
-            display_output_vector = restrict_vec3_from_0_to_1(display_output_vector);
+            // Restrict to values actually inside the colorspace
+            display_output_hsl = clamp_hsluv(display_output_hsl);
+
+            // optimize chroma by restricting lightness
+            if(display_output_hsl[1] > 10.0){
+                display_output_hsl[2] = min(display_output_hsl[2], get_max_safe_lightness(display_output_hsl[0]));
+            }
         }
 
         if(debug_background){
@@ -1389,6 +1497,9 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     }
 
     if(debug_show_intended_output_hsluv){
+        if(debug_background){
+            display_output_hsl = hsl_background;
+        }
         display_output_vector = hsluvToRgb(display_output_hsl);
     }
 

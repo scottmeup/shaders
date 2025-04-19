@@ -528,11 +528,23 @@ float interpolate_hue(float h1, float h2, float t) {
 }
 
 
+
 // Return the max lightness for a hue angle that doesn't result in diminished chroma
-float get_max_safe_lightness(float hue) {
-    int idx_above = int(mod(ceil(hue), 360.0));
-    int idx_below = int(mod(floor(hue), 360.0));
+float get_max_safe_lightness(float hue_angle) {
+    int idx_above = int(mod(ceil(hue_angle), 360.0));
+    int idx_below = int(mod(floor(hue_angle), 360.0));
     return min(hsluv_max_lightness_lut[idx_below], hsluv_max_lightness_lut[idx_above]);
+}
+
+vec3 scale_hsluv_lightness(vec3 color_hsluv){
+    float hsluv_hue_angle = color_hsluv[0];
+    float hsluv_saturation = color_hsluv[1];
+    float hsluv_lightness = color_hsluv[2];
+    //Apply to colors only, with a cutoff saturation defining what is a color
+    if(hsluv_saturation>10.0){
+        float hsluv_lightness = get_max_safe_lightness(hsluv_hue_angle);
+    }
+    return vec3(hsluv_hue_angle, hsluv_saturation, hsluv_lightness);
 }
 
 // Interpolate between two HSLuv colors (vec3(h, s, l))
@@ -1110,10 +1122,30 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     vec3 rgb_pulse = pulse.rgb_pulse;
 
     // Generate HSLuv equivalents of specified colors
-    vec3 hsl_background = rgbToHsluv (rgb_background);
-    vec3 hsl_pause = rgbToHsluv (rgb_pause);
-    vec3 hsl_pulse = rgbToHsluv (rgb_pulse);
-    vec3 hsl_fade_in = rgbToHsluv (rgb_fade_in);
+    vec3 hsl_background = rgbToHsluv(rgb_background);
+    vec3 hsl_pause = rgbToHsluv(rgb_pause);
+    vec3 hsl_pulse = rgbToHsluv(rgb_pulse);
+    vec3 hsl_fade_in = rgbToHsluv(rgb_fade_in);
+    // Scale down max lightness for each color
+    hsl_background = scale_hsluv_lightness(hsl_background);
+    hsl_pause = scale_hsluv_lightness(hsl_pause);
+    hsl_pulse = scale_hsluv_lightness(hsl_pulse);
+    hsl_fade_in = scale_hsluv_lightness(hsl_fade_in);
+    // Find lowest base brightness for this column
+    float min_lightness_base = 100.0;
+    if(hsl_pause[2] > 10.0){
+        min_lightness_base = min(hsl_pause[2], min_lightness_base);
+    }
+    if(hsl_pulse[2] > 10.0){
+        min_lightness_base = min(hsl_pulse[2], min_lightness_base);
+    }
+    if(hsl_fade_in[2] > 10.0){
+        min_lightness_base = min(hsl_fade_in[2], min_lightness_base);
+    }
+    // Scale down the rest of the column.
+    hsl_pause[2] = min_lightness_base;
+    hsl_pulse[2] = min_lightness_base;
+    hsl_fade_in[2] = min_lightness_base;
     
     // Set up some variables related to display
     float size_of_led_as_percent_of_display = (1.0 / size_of_display_in_leds);
@@ -1310,8 +1342,8 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
                 ratio_brightness_pulse = clamp(ratio_brightness_pulse, 0.0, 1.0);
                 ratio_brightness_background = clamp(ratio_brightness_background, 0.0, 1.0);
                 
-
-                display_output_hsl_hue = interpolate_hue(hsl_hue_fade_in, hsl_hue_pulse, ratio_brightness_fade_in_to_pulse);
+                //Display pulse decay or fade-in. Order is defined here.
+                display_output_hsl_hue = interpolate_hue(hsl_hue_pulse, hsl_hue_fade_in, ratio_brightness_fade_in_to_pulse);
                 display_output_hsl_saturation = max((hsl_fade_in[1]), (hsl_pulse[1]));
                 display_output_hsl_lightness  = max((hsl_fade_in[2] * fade_in_factor), (hsl_pulse[2] * decay_factor));
                 display_output_hsl = vec3(display_output_hsl_hue, display_output_hsl_saturation, display_output_hsl_lightness);

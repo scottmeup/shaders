@@ -1131,7 +1131,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     hsl_pause = scale_hsluv_lightness(hsl_pause);
     hsl_pulse = scale_hsluv_lightness(hsl_pulse);
     hsl_fade_in = scale_hsluv_lightness(hsl_fade_in);
-    // Find lowest base brightness for this column
+    // Find lowest base brightness for this column out of pulse, pause, fade-in
     float min_lightness_base = 100.0;
     if(hsl_pause[2] > 10.0){
         min_lightness_base = min(hsl_pause[2], min_lightness_base);
@@ -1302,6 +1302,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
             float ratio_brightness_fade_in;
             float ratio_brightness_background;
             float ratio_brightness_fade_in_to_pulse;
+            float ratio_brightness_background_to_main;
             float value_brightness_total;
             float brightness;
             float display_output_hsl_hue;
@@ -1309,7 +1310,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
             float display_output_hsl_lightness; 
             float hsl_hue_pulse = hsl_pulse[0];
             float hsl_hue_fade_in = hsl_fade_in[0];
-            float hsl_hue_background = hsl_background[0];
+            float hsl_hue_background = clamp(hsl_background[0], 0.0, 360.0);
             vec3 display_output_hsl_pulse;
             vec3 display_output_hsl_fade_in;
 
@@ -1320,9 +1321,9 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
             }
             // non-head section
             else{
-                // Apply fade-in
+                // Generate fade-in values
                 display_output_hsl_fade_in = vec3(hsl_fade_in.xy, fade_in_factor*hsl_fade_in.z);
-                // Apply decay trail
+                // Generate decay trail values
                 display_output_hsl_pulse = vec3(hsl_pulse.xy, max(decay_value, color_pulse_minimum_brightness_value));
 
                 // Calculate brightness before, or after applying background
@@ -1342,42 +1343,18 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
                 ratio_brightness_pulse = clamp(ratio_brightness_pulse, 0.0, 1.0);
                 ratio_brightness_background = clamp(ratio_brightness_background, 0.0, 1.0);
                 
-                //Display pulse decay or fade-in. Order is defined here.
+                // Generate pulse decay & fade-in. Placement ahead / behind is defined by order of first 2 arguments.
                 display_output_hsl_hue = interpolate_hue(hsl_hue_pulse, hsl_hue_fade_in, ratio_brightness_fade_in_to_pulse);
                 display_output_hsl_saturation = max((hsl_fade_in[1]), (hsl_pulse[1]));
-                display_output_hsl_lightness  = max((hsl_fade_in[2] * fade_in_factor), (hsl_pulse[2] * decay_factor));
+                display_output_hsl_lightness  = max(max((hsl_fade_in[2] * fade_in_factor), (hsl_pulse[2] * decay_factor)), hsl_background[2]);
                 display_output_hsl = vec3(display_output_hsl_hue, display_output_hsl_saturation, display_output_hsl_lightness);
-                //display_output_hsl = interpolate_hsluv(display_output_hsl_fade_in, display_output_hsl_pulse, 1.0);
 
-/*
+                // Generate background values
+                ratio_brightness_background_to_main = ratio_brightness_background / (display_output_hsl[2] + ratio_brightness_background);
+                //ratio_brightness_background_to_main = display_output_hsl[2] / (display_output_hsl[2] + ratio_brightness_background);
 
-                else{
-                    brightness = display_output_hsl.z;
-                    ratio_color = (hsl_background.z / (display_output_hsl.z + hsl_background.z));
-                    float hue_background = hsl_background[0];
-                    float hue_display_output = display_output_hsl[0];
-                    hue_display_output = clamp(hue_display_output, 0.0, 360.0);
-                    hue_background = clamp(hue_background, 0.0, 360.0);
-                    
-                    //hue_background = sin(iTime/1.0) * (180.0);
-                    //hue_display_output = sin(iTime/100.0) * 360.0;
-                    
-                    // 0.0 = display, 1.0 = background
-                    ratio_color = 1.0;
+                display_output_hsl[0] = interpolate_hue(display_output_hsl_hue, hsl_hue_background, ratio_brightness_background_to_main);
 
-                    float hue_display_output_blended_background = interpolate_hue(hue_display_output, hue_background, ratio_color);
-                    //hue_display_output_blended_background = clamp(hue_display_output_blended_background, -360.0, 360.0);
-                    display_output_hsl[0] = hue_display_output_blended_background;
-
-                    //display_output_hsl = interpolate_hsluv(display_output_hsl, hsl_background, ratio_color);
-
-
-                    //display_output_hsl[0] = interpolate_hue(display_output_hsl.x, hsl_background.x, ratio_color);  //BUG HERE
-                    //display_output_hsl[0] = clamp(interpolate_hue(display_output_hsl[0], hsl_background[0], ratio_color), -360.0, 360.0); //BUG HERE
-                    //display_output_hsl.z += hsl_background.z;
-                }
-
-                */
                 
                 // Apply alternate color if calculated brightness is below the minimum specified
                 if(value_brightness_total < color_brightness_cutoff){
@@ -1386,7 +1363,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 
 
             }
-            // Restrict to values actually inside the colorspace
+            // Limit to values actually inside the colorspace
             display_output_hsl = clamp_hsluv(display_output_hsl);
 
             // optimize chroma by restricting lightness

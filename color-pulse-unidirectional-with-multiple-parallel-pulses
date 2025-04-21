@@ -528,8 +528,22 @@ float interpolate_hue(float h1, float h2, float t) {
 }
 
 
+float get_max_safe_lightness(vec3 hsluv_color){
+    // Handle unsaturated colors
+    if(hsluv_color[1] < 10.0){
+        return 100.0;
+    }
+    else{
+        float hue_angle = hsluv_color[0];
+        int idx_above = int(mod(ceil(hue_angle), 360.0));
+        int idx_below = int(mod(floor(hue_angle), 360.0));
+        return min(hsluv_max_lightness_lut[idx_below], hsluv_max_lightness_lut[idx_above]);
+    }
+}
+
 
 // Return the max lightness for a hue angle that doesn't result in diminished chroma
+// Not the best - white isn't handled properly
 float get_max_safe_lightness(float hue_angle) {
     int idx_above = int(mod(ceil(hue_angle), 360.0));
     int idx_below = int(mod(floor(hue_angle), 360.0));
@@ -706,6 +720,35 @@ vec2 get_display_location_as_percent_of_display_size(vec2 fragCoord){
     }
     vec2 display_location_as_percent_of_display = vec2(position_current_pixel_x/size_display_width_in_pixels, position_current_pixel_y/size_display_height_in_pixels);
     return display_location_as_percent_of_display;
+}
+
+vec3[4] adjust_lightness_hsluv(vec3[4] color_element){
+    int lightest_color = -1;
+    float max_lightness = -1.0;
+
+    // Calculate lightest element
+    for(int i=0; i<4; i++){
+        if(color_element[i][2] > max_lightness){
+            max_lightness = color_element[i][2];
+            lightest_color = i;
+        }
+    }
+
+    // Scale lightness of other elements
+    float highest_safe_lightness = get_max_safe_lightness(color_element[lightest_color]);
+    float ratio_hsluv_lightness_reduction = ( highest_safe_lightness / color_element[lightest_color][2] );
+    for(int i=0; i<4; i++){
+        if(i==lightest_color){
+            color_element[i] = scale_hsluv_lightness(color_element[i]);
+        }
+        else{
+            // Choose the lowest of either the current lightness for the color, or the safest lightness for the color
+            color_element[i][2] = min(get_max_safe_lightness(color_element[i]), color_element[i][2]);
+            // Reduce by the same % as the lightest element was reduced
+            color_element[i][2] *= ratio_hsluv_lightness_reduction;
+        }
+    }
+    return color_element;
 }
 
 float get_pulse_location_as_percent_of_display(){
@@ -1122,30 +1165,22 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     vec3 rgb_pulse = pulse.rgb_pulse;
 
     // Generate HSLuv equivalents of specified colors
-    vec3 hsl_background = rgbToHsluv(rgb_background);
-    vec3 hsl_pause = rgbToHsluv(rgb_pause);
-    vec3 hsl_pulse = rgbToHsluv(rgb_pulse);
-    vec3 hsl_fade_in = rgbToHsluv(rgb_fade_in);
-    // Scale down max lightness for each color
-    hsl_background = scale_hsluv_lightness(hsl_background);
-    hsl_pause = scale_hsluv_lightness(hsl_pause);
-    hsl_pulse = scale_hsluv_lightness(hsl_pulse);
-    hsl_fade_in = scale_hsluv_lightness(hsl_fade_in);
-    // Find lowest base brightness for this column out of pulse, pause, fade-in
-    float min_lightness_base = 100.0;
-    if(hsl_pause[2] > 10.0){
-        min_lightness_base = min(hsl_pause[2], min_lightness_base);
-    }
-    if(hsl_pulse[2] > 10.0){
-        min_lightness_base = min(hsl_pulse[2], min_lightness_base);
-    }
-    if(hsl_fade_in[2] > 10.0){
-        min_lightness_base = min(hsl_fade_in[2], min_lightness_base);
-    }
-    // Scale down the rest of the column.
-    hsl_pause[2] = min_lightness_base;
-    hsl_pulse[2] = min_lightness_base;
-    hsl_fade_in[2] = min_lightness_base;
+    vec3 hsl_background = clamp_hsluv(rgbToHsluv(rgb_background));
+    vec3 hsl_pause = clamp_hsluv(rgbToHsluv(rgb_pause));
+    vec3 hsl_pulse = clamp_hsluv(rgbToHsluv(rgb_pulse));
+    vec3 hsl_fade_in = clamp_hsluv(rgbToHsluv(rgb_fade_in));
+
+    // Adjust HSLuv colors
+    vec3[4] hsl_array;
+    hsl_array[0] = hsl_pulse;
+    hsl_array[1] = hsl_fade_in;
+    hsl_array[2] = hsl_pause;
+    hsl_array[3] = hsl_background;
+    hsl_array = adjust_lightness_hsluv(hsl_array);
+    hsl_pulse = hsl_array[0];
+    hsl_fade_in = hsl_array[1];
+    hsl_pause = hsl_array[2];
+    hsl_background = hsl_array[3];
     
     // Set up some variables related to display
     float size_of_led_as_percent_of_display = (1.0 / size_of_display_in_leds);
@@ -1358,9 +1393,10 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
                 
                 // Apply alternate color if calculated brightness is below the minimum specified
                 if(value_brightness_total < color_brightness_cutoff){
-                    display_output_hsl = hsl_pause;
+                    //display_output_hsl = hsl_pause;
                 }
-
+                // debug - override output
+                //display_output_hsl = hsl_pulse;
 
             }
             // Limit to values actually inside the colorspace

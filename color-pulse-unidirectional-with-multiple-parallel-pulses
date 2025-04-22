@@ -14,6 +14,9 @@
 // - - Especially for blending pulse head to fade-in
 // - Write better variable names for get_decay_and_fade_offsets()
 // - Implement head offset & head buffer column settings
+// - Find out why 6th (element 5) column (purple to blue) sometimes blips full blue before transition in hsluv debug.
+// - - Fade in value? Yes. Somehow related to fade-in.
+// - - - Check brightness algorithm
 
 
 // Begin User Config Globals Section
@@ -599,9 +602,24 @@ vec3 restrict_vec3_from_0_to_1(vec3 var){
     return var;
 }
 
-float distance_with_mod(float position_initial, float position_final, float size_of_space){
-    // Always returns a positive value: the remainder of (pos_final - pos_initial) / size_of_space
-    return mod((position_final - position_initial), size_of_space);
+float distance_with_wrap(float position_initial, float position_final, float size_of_space){
+    float delta = (position_final - position_initial);
+    float distance = 0.0;
+    // More than 50% of the total space between points means that the space boundary is between them
+    if(abs(delta) > (size_of_space/2.0)){
+        // Case: delta is positive and crosses the space boundary
+        if(delta > 0.0){
+            delta -= size_of_space;
+        }
+        // Case: delta is negative and crosses the space boundary
+        else if(delta < 0.0){
+            delta += size_of_space;
+        }
+        else{
+            return 0.0;
+        }
+    }
+    return delta;
 }
 
 
@@ -745,6 +763,7 @@ vec3[4] adjust_lightness_hsluv(vec3[4] color_element){
             // Choose the lowest of either the current lightness for the color, or the safest lightness for the color
             color_element[i][2] = min(get_max_safe_lightness(color_element[i]), color_element[i][2]);
             // Reduce by the same % as the lightest element was reduced
+            // Play around with this and see if it's better with or without it
             color_element[i][2] *= ratio_hsluv_lightness_reduction;
         }
     }
@@ -1349,60 +1368,69 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
             vec3 display_output_hsl_pulse;
             vec3 display_output_hsl_fade_in;
 
+
+            // Generate fade-in values
+            display_output_hsl_fade_in = vec3(hsl_fade_in.xy, fade_in_factor*hsl_fade_in.z);
+            // Generate decay trail values
+            display_output_hsl_pulse = vec3(hsl_pulse.xy, max(decay_value, color_pulse_minimum_brightness_value));
+
+            // Calculate brightness before, or after applying background
+            if(color_brightness_cutoff_includes_background_brightness){
+                value_brightness_total = clamp((display_output_hsl_fade_in[2] + display_output_hsl_pulse[2] + hsl_background[2]), 0.0, 100.0);
+            }
+            else{
+                value_brightness_total = clamp((display_output_hsl_fade_in[2] + display_output_hsl_pulse[2]), 0.0, 100.0);
+            }
+
+            ratio_brightness_fade_in = display_output_hsl_fade_in[2] / value_brightness_total;
+            ratio_brightness_pulse = display_output_hsl_pulse[2] / value_brightness_total;
+            ratio_brightness_background = hsl_background[2] / value_brightness_total;
+            ratio_brightness_fade_in_to_pulse = ratio_brightness_fade_in / (ratio_brightness_fade_in + ratio_brightness_pulse);
+            ratio_brightness_fade_in = clamp(ratio_brightness_fade_in, 0.0, 1.0);
+            ratio_brightness_pulse = clamp(ratio_brightness_pulse, 0.0, 1.0);
+            ratio_brightness_background = clamp(ratio_brightness_background, 0.0, 1.0);
+
             // head section
             if(head_factor > 0.0){
-                // Apply head
-                display_output_hsl = interpolate_hsluv(hsl_fade_in, hsl_pulse, head_factor);
+                if(color_combine_pulse_head_with_fade_in){
+                    display_output_hsl = interpolate_hsluv(hsl_fade_in, hsl_pulse, head_factor);                    
+                }
+                else{
+                    display_output_hsl = hsl_pulse;
+                }
             }
             // non-head section
             else{
-                // Generate fade-in values
-                display_output_hsl_fade_in = vec3(hsl_fade_in.xy, fade_in_factor*hsl_fade_in.z);
-                // Generate decay trail values
-                display_output_hsl_pulse = vec3(hsl_pulse.xy, max(decay_value, color_pulse_minimum_brightness_value));
 
-                // Calculate brightness before, or after applying background
-                if(color_brightness_cutoff_includes_background_brightness){
-                    value_brightness_total = display_output_hsl_fade_in[2] + display_output_hsl_pulse[2] + hsl_background[2];
-                }
-                else{
-                    value_brightness_total = display_output_hsl_fade_in[2] + display_output_hsl_pulse[2];
-                }
-
-                //float pulse_to_fade_in_brightness_ratio = display_output_hsl_fade_in.z / display_output_hsl_pulse.z;
-                ratio_brightness_fade_in = display_output_hsl_fade_in[2] / value_brightness_total;
-                ratio_brightness_pulse = display_output_hsl_pulse[2] / value_brightness_total;
-                ratio_brightness_background = hsl_background[2] / value_brightness_total;
-                ratio_brightness_fade_in_to_pulse = ratio_brightness_fade_in / (ratio_brightness_fade_in + ratio_brightness_pulse);
-                ratio_brightness_fade_in = clamp(ratio_brightness_fade_in, 0.0, 1.0);
-                ratio_brightness_pulse = clamp(ratio_brightness_pulse, 0.0, 1.0);
-                ratio_brightness_background = clamp(ratio_brightness_background, 0.0, 1.0);
                 
                 // Generate pulse decay & fade-in. Placement ahead / behind is defined by order of first 2 arguments.
-                display_output_hsl_hue = interpolate_hue(hsl_hue_pulse, hsl_hue_fade_in, ratio_brightness_fade_in_to_pulse);
-                display_output_hsl_saturation = max((hsl_fade_in[1]), (hsl_pulse[1]));
-                display_output_hsl_lightness  = max(max((hsl_fade_in[2] * fade_in_factor), (hsl_pulse[2] * decay_factor)), hsl_background[2]);
+                display_output_hsl_hue = interpolate_hue(hsl_hue_pulse, hsl_hue_fade_in, ratio_brightness_fade_in_to_pulse);  // looks like some problem here for column 6
+                display_output_hsl_saturation = max((hsl_fade_in[1]), (hsl_pulse[1]));  // might want to ratio this
+                display_output_hsl_lightness  = max(max((hsl_fade_in[2] * fade_in_factor), (hsl_pulse[2] * decay_factor)), hsl_background[2]);  // column 6 still black even with 100% lightness
                 display_output_hsl = vec3(display_output_hsl_hue, display_output_hsl_saturation, display_output_hsl_lightness);
 
                 // Generate background values
                 ratio_brightness_background_to_main = ratio_brightness_background / (display_output_hsl[2] + ratio_brightness_background);
                 //ratio_brightness_background_to_main = display_output_hsl[2] / (display_output_hsl[2] + ratio_brightness_background);
 
+                // Blend background into existing output
                 display_output_hsl[0] = interpolate_hue(display_output_hsl_hue, hsl_hue_background, ratio_brightness_background_to_main);
 
-                
                 // Apply alternate color if calculated brightness is below the minimum specified
-                if(value_brightness_total < color_brightness_cutoff){
-                    //display_output_hsl = hsl_pause;
+                if(value_brightness_total < (color_brightness_cutoff*100.0)){
+                    display_output_hsl = hsl_pause;
                 }
                 // debug - override output
                 //display_output_hsl = hsl_pulse;
+                //display_output_hsl = hsl_fade_in;
+                //display_output_hsl = hsl_background;
 
             }
             // Limit to values actually inside the colorspace
             display_output_hsl = clamp_hsluv(display_output_hsl);
 
             // optimize chroma by restricting lightness
+            // Consider if this is needed - base colors are already checked for lightness, so only transition colors will be adjusted
             if(display_output_hsl[1] > 10.0){
                 display_output_hsl[2] = min(display_output_hsl[2], get_max_safe_lightness(display_output_hsl[0]));
             }

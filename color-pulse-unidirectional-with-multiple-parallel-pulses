@@ -405,7 +405,12 @@ vec3 hsluvToRgb(vec3 tuple) {
 }
 
 vec3 rgbToHsluv(vec3 tuple) {
-    return lchToHsluv(rgbToLch(tuple));
+    if(tuple==(vec3(0.0, 0.0, 0.0))){
+        return tuple;
+    }
+    else{
+        return lchToHsluv(rgbToLch(tuple));
+    }
 }
 
 vec3 hpluvToRgb(vec3 tuple) {
@@ -1444,6 +1449,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
             }
             // non-head section
             else{
+                /*
                 // Oh boy, gotta rename some of these...
                 //display_output_hsl = display_output_hsl_pulse;
                 //display_output_hsl = display_output_hsl_fade_in;
@@ -1454,14 +1460,14 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
                 //display_output_hsl_hue = display_output_hsl_pulse[0];
                 //display_output_hsl = vec3(display_output_hsl_hue, max(display_output_hsl_pulse[1], display_output_hsl_fade_in[1]), (display_output_hsl_pulse.z + display_output_hsl_fade_in.z));
                 
-                ratio_brightness_fade_in_to_pulse = 0.0;
-                //display_output_hsl_hue = interpolate_hue(0.0, display_output_hsl_pulse[0], ratio_brightness_fade_in_to_pulse);
+                ratio_brightness_fade_in_to_pulse = 0.5;
+                display_output_hsl_hue = interpolate_hue(0.0, display_output_hsl_pulse[0], ratio_brightness_fade_in_to_pulse);
                 display_output_hsl_fade_in[0] = mod(display_output_hsl_fade_in[0], 360.0);
                 display_output_hsl_hue = interpolate_hue(display_output_hsl_fade_in[0], 0.0, ratio_brightness_fade_in_to_pulse); // <- #BUG# fade-in hue interpolation causes black column 6 / [5]
-
+                display_output_hsl_hue = display_output_hsl_fade_in[0];
                 display_output_hsl = vec3(display_output_hsl_hue, 100.0, 75.0);
-
-/*             
+*/
+             
                 // Generate pulse decay & fade-in. Placement ahead / behind is defined by order of first 2 arguments.
                 display_output_hsl_hue = interpolate_hue(hsl_hue_fade_in, hsl_hue_pulse, ratio_brightness_fade_in_to_pulse);  // looks like some problem here for column 6
                 //display_output_hsl_hue = interpolate_hue(hsl_hue_pulse, hsl_hue_fade_in, 0.0);  // Setting 3rd argument to 0 fixes column 6 - [5]
@@ -1479,7 +1485,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 
                 // Blend background into existing output
                 display_output_hsl[0] = interpolate_hue(display_output_hsl_hue, hsl_hue_background, ratio_brightness_background_to_main);
-*/
+
 
                 // Apply alternate color if calculated brightness is below the minimum specified
                 if(value_brightness_total < (color_brightness_cutoff*100.0)){

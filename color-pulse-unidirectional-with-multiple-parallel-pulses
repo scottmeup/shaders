@@ -68,8 +68,8 @@ const bool debug_master_hsluv = true;
 const bool debug_add_overlay_colorshft = false;
 
 const bool debug_head = true;
-const bool debug_pulse = true;                 // Is pulse occupying the same space as head?
-const bool debug_fade_in = false;  
+const bool debug_pulse = true;                
+const bool debug_fade_in = true;  
 const bool debug_background = false;
 const bool debug_decay_and_fade_in = false;
 const bool debug_fade_in_position = false;               // I think it looks better with this set to false
@@ -488,7 +488,7 @@ vec4   luvToRgb(float x, float y, float z, float a) {return   luvToRgb( vec4(x,y
 
 float ratio_normalized(float a, float b){
     if((a >= 0.0) && (b >= 0.0)){
-        float ratio = (a - b + epsilon_0_to_100) / (a + b + (2*epsilon_0_to_100));
+        float ratio = (b - a + epsilon_0_to_100) / (b + a + (2*epsilon_0_to_100));
         ratio *= 0.5;
         ratio += 0.5;
         return ratio;
@@ -1562,7 +1562,8 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 
     if(debug_master_hsluv){
         float color_pulse_minimum_brightness_value = color_pulse_minimum_brightness_percent * 100.0;
-        float decay_value=(decay_factor*hsl_pulse.z);
+        float decay_value=(decay_factor*hsl_pulse[2]);
+        float fade_in_value=(fade_in_factor*hsl_fade_in[2]);
         float ratio_brightness_pulse;
         float ratio_brightness_fade_in;
         float ratio_brightness_background;
@@ -1701,8 +1702,10 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         }
 
         if(debug_pulse && debug_fade_in){
+            ratio_brightness_fade_in_to_pulse = ratio_normalized(fade_in_value, decay_value);
             //display_output_hsl = interpolate_hsluv(display_output_hsl_fade_in, display_output_hsl_pulse, ratio_brightness_fade_in_to_pulse); // pulse not showing with this line
-            display_output_hsl_hue = interpolate_hue(display_output_hsl_fade_in[0], display_output_hsl_pulse[0], ratio_brightness_fade_in_to_pulse);
+            display_output_hsl_hue = interpolate_hue(display_output_hsl_fade_in[0], display_output_hsl_pulse[0], ratio_brightness_fade_in_to_pulse);  // ratio or interpolation not working yet - seems to be shifting strongly toward black
+            //display_output_hsl_hue = interpolate_hue(display_output_hsl_fade_in[0], display_output_hsl_pulse[0], 1.0);
             display_output_hsl_lightness = max(current_location_brightness_fade_in, current_location_brightness_pulse);
             display_output_hsl_saturation = max(hsl_fade_in[1], hsl_pulse[1]);
             display_output_hsl = vec3(display_output_hsl_hue, display_output_hsl_saturation, display_output_hsl_lightness);

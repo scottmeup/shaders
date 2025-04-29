@@ -25,8 +25,8 @@
 const int size_of_display_in_columns = 11;    // how many parallel pulses to run
 const bool direction_movement_horizontal = false;
 const bool direction_movement_reversed = false;
-const float duration_of_pause = 7.0;   //  Time between the front of the pulse leaving the screen and the next pulse appearing 
-const float duration_of_pulse = 5.0;    // Time taken for the front of the pulse to run across the display
+const float duration_of_pause = 10.0;   //  Time between the front of the pulse leaving the screen and the next pulse appearing 
+const float duration_of_pulse = 10.0;    // Time taken for the front of the pulse to run across the display
 const float speed_global_modifier = 1.0;    // When set to 1.0, cycle will play at 1 second per unit of duration
 //
 //
@@ -164,10 +164,10 @@ void Initialize_pulse_settings_array(inout Pulse_settings pulse[size_of_display_
     pulse[6]  = Pulse_settings(vec3(0.0, 0.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(0.5, 0.0, 1.0), vec3(0.0, 0.0, 0.0), 8.0,      1.0,   3.0,  0.0, 64.0,   0.0,  0.0,   0.0,     false,  true, true,   true,   false);     // Device 7
 //    pulse[7]  = Pulse_settings(vec3(1.0, 0.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(1.0, 0.0, 1.0), vec3(0.0, 0.0, 0.0), 3.0,      1.0,   3.0,  0.0,  1.0,   3.0,  0.025,   0.0,     false,  true, false,  true,   true );     // Device 8
 //    pulse[8]  = Pulse_settings(vec3(0.5, 0.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(0.5, 0.0, 1.0), vec3(0.0, 0.0, 0.0), 4.0,      0.0,   0.0,  1.0,  0.0,   1.0,  0.025,   0.0,     false,  true, false,  true,   false );    // Device 9
-    pulse[9]  = Pulse_settings(vec3(1.0, 1.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(1.0, 1.0, 1.0), vec3(0.0, 0.0, 0.0), 4.0,      0.0,   9.0,  0.0,  9.0,   0.0,  0.025,   0.0,     false,  true, false,  false,  false );    // Device 10
-    pulse[10] = Pulse_settings(vec3(1.0, 1.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(1.0, 1.0, 1.0), vec3(0.0, 0.0, 0.0), 4.0,      0.0,   0.0,  1.5,  0.0,   0.0,  0.025,   0.3,     false,  true, false,  false,  false );    // Device 11
-    pulse[7]  = Pulse_settings(vec3(1.0, 0.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(1.0, 0.0, 1.0), vec3(0.0, 0.0, 0.0), 2.0,      1.0,   3.0,  0.0,  1.0,   3.0,  0.025,   0.0,     false,  true, false,  true,   true );     // Device 8
-    pulse[8]  = Pulse_settings(vec3(1.0, 0.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(1.0, 0.0, 1.0), vec3(0.0, 0.0, 0.0), 2.0,      1.0,   3.0,  0.0,  1.0,   3.0,  0.025,   0.0,     false,  true, false,  false,   false );     // Device 8
+    pulse[9]  = Pulse_settings(vec3(1.0, 1.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(1.0, 1.0, 1.0), vec3(0.0, 0.0, 0.0), 4.0,      0.0,   9.0,  0.0,  9.0,   0.0,  0.0,   0.0,     false,  true, false,  false,  false );    // Device 10
+    pulse[10] = Pulse_settings(vec3(1.0, 1.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(1.0, 1.0, 1.0), vec3(0.0, 0.0, 0.0), 4.0,      0.0,   0.0,  1.5,  0.0,   0.0,  0.0,   0.3,     false,  true, false,  false,  false );    // Device 11
+    pulse[7]  = Pulse_settings(vec3(1.0, 0.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(1.0, 0.0, 1.0), vec3(0.0, 0.0, 0.0), 2.0,      1.0,   3.0,  0.0,  1.0,   3.0,  0.0,   0.0,     false,  true, false,  true,   true );     // Device 8
+    pulse[8]  = Pulse_settings(vec3(1.0, 0.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(1.0, 0.0, 1.0), vec3(0.0, 0.0, 0.0), 2.0,      1.0,   3.0,  0.0,  1.0,   3.0,  0.0,   0.0,     false,  true, false,  false,   false );     // Device 8
 
 
     /*
@@ -688,24 +688,24 @@ bool define_led_element_at_offset_from_pulse_index(float offset_from_pulse_in_le
     
     bool element_is_defined = false;
     
-    if (size_forward > size_of_defined_element_as_percent_of_display){
+    if (size_forward >= size_of_defined_element_as_percent_of_display){
         // Entire head is in front of the pulse and not touching it
         if(distance_of_current_location_in_front_of_pulse_as_percent_of_display < (size_forward - size_of_defined_element_as_percent_of_display) ){
             element_is_defined = false;
         }
-        else if(distance_of_current_location_in_front_of_pulse_as_percent_of_display < size_forward){
+        else if(distance_of_current_location_in_front_of_pulse_as_percent_of_display <= size_forward){
             element_is_defined = true;
         }
         else{
             element_is_defined = false;
         }
     }
-    else if (size_backward > size_of_defined_element_as_percent_of_display){
+    else if (size_backward >= size_of_defined_element_as_percent_of_display){
         // Entire head is behind the pulse and not touching it
         if(distance_of_current_location_behind_pulse_as_percent_of_display < (size_backward - size_of_defined_element_as_percent_of_display) ){
             element_is_defined = false;
         }
-        else if(distance_of_current_location_behind_pulse_as_percent_of_display < size_backward){
+        else if(distance_of_current_location_behind_pulse_as_percent_of_display <= size_backward){
             element_is_defined = true;
         }
         else{
@@ -713,10 +713,10 @@ bool define_led_element_at_offset_from_pulse_index(float offset_from_pulse_in_le
         }
     }
     //Head spans the pulse index if neither of the above two options applies
-    else if(distance_of_current_location_in_front_of_pulse_as_percent_of_display < size_forward ){
+    else if(distance_of_current_location_in_front_of_pulse_as_percent_of_display <= size_forward ){
         element_is_defined = true;
     }
-    else if(distance_of_current_location_behind_pulse_as_percent_of_display < size_backward ){
+    else if(distance_of_current_location_behind_pulse_as_percent_of_display <= size_backward ){
         element_is_defined = true;
     }
     
@@ -911,15 +911,17 @@ vec3 generate_fade_in(float current_location_on_y_axis_of_display_as_percent_of_
 */
 
 
-float generate_pulse_decay(float distance_of_current_location_behind_pulse_as_percent_of_display, float pulse_location_as_percent_of_display, float size_of_cycle_as_percent_of_display, float offset_from_pulse_index, Pulse_settings pulse){
+float generate_pulse_decay(float distance_of_current_location_behind_pulse_as_percent_of_display, bool behind_pulse, float pulse_location_as_percent_of_display, float size_of_cycle_as_percent_of_display, float offset_from_pulse_index, Pulse_settings pulse){
     // Generate decay pulse
-    
+    // #TO DO / BUG#:
+    // - Differentiate between forward and backward decay direction for offset + decay rates
+
     // Positive offsets move the beginning of calculations behind the pulse
     // Negative offsets move the beginning of calculations in front of the pulse 
     // mod(distance) is better left for debug - it creates a gap between the head and the decay section
     float distance_plus_offset_behind_pulse_as_percent_of_display = (distance_of_current_location_behind_pulse_as_percent_of_display - offset_from_pulse_index);
     //distance_plus_offset_behind_pulse_as_percent_of_display = mod(distance_plus_offset_behind_pulse_as_percent_of_display, size_of_cycle_as_percent_of_display);
-    
+
     float decay_speed_exponential = pulse.decay_speed_exponential;
     float decay_speed_linear = pulse.decay_speed_linear;
     float size_of_display_in_leds = pulse.size_of_display_in_leds;
@@ -932,8 +934,9 @@ float generate_pulse_decay(float distance_of_current_location_behind_pulse_as_pe
     float decay_total;
 
     // Case: head area. separate head rendering function should handle this space.
+    // Needs to be modified for fade-in, either here or in the calling section
     // Will probably need to modify this to accept different offsets
-    if(distance_of_current_location_behind_pulse_as_percent_of_display < size_of_pulse_head_as_percent_of_display){
+    if((distance_of_current_location_behind_pulse_as_percent_of_display <= size_of_pulse_head_as_percent_of_display) && (behind_pulse)){
         return 0.0;
     }
 
@@ -1294,11 +1297,11 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     // Generate head
     //float head_factor = generate_head(pulse_location_as_percent_of_display, current_location_on_y_axis_of_display_as_percent_of_display, distance_of_current_location_behind_pulse_as_percent_of_display, distance_of_current_location_in_front_of_pulse_as_percent_of_display, head_offset_as_percent_of_display, pulse);
     bool head_is_defined = define_led_element_at_offset_from_pulse_index(head_offset_in_leds, size_pulse_head_in_leds, size_of_display_in_leds, distance_of_current_location_in_front_of_pulse_as_percent_of_display, distance_of_current_location_behind_pulse_as_percent_of_display);
-    float head_factor = 0.0;
+    float head_factor = -1.0;
     if(head_is_defined){
         head_factor = 1.0;
         if(color_combine_pulse_head_with_fade_in){
-            head_factor = (distance_of_current_location_behind_pulse_as_percent_of_display / size_pulse_head_as_percent_of_display);
+            head_factor = (distance_of_current_location_behind_pulse_as_percent_of_display / size_pulse_head_as_percent_of_display) + epsilon_0_to_100;
         }
     }
 
@@ -1306,8 +1309,8 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     // Generate decay tail + fade-in
     // Direction controlled by sending either distance_of_current_location_behind_pulse_as_percent_of_display or distance_of_current_location_in_front_of_pulse_as_percent_of_display
     // decay_and_fade_offset.x (decay) and decay_and_fade_offset.y (fade-in) are the distance from pulse index to use as the start of calculations
-    float decay_factor =   generate_pulse_decay( distance_of_current_location_behind_pulse_as_percent_of_display, pulse_location_as_percent_of_display, size_of_cycle_as_percent_of_display, decay_and_fade_offset.x, pulse);
-    float fade_in_factor = generate_pulse_decay( distance_of_current_location_in_front_of_pulse_as_percent_of_display, pulse_location_as_percent_of_display, size_of_cycle_as_percent_of_display, decay_and_fade_offset.y, pulse);
+    float decay_factor =   generate_pulse_decay( distance_of_current_location_behind_pulse_as_percent_of_display, true, pulse_location_as_percent_of_display, size_of_cycle_as_percent_of_display, decay_and_fade_offset.x, pulse);
+    float fade_in_factor = generate_pulse_decay( distance_of_current_location_in_front_of_pulse_as_percent_of_display, false, pulse_location_as_percent_of_display, size_of_cycle_as_percent_of_display, decay_and_fade_offset.y, pulse);
     
     // Keep values in a sensible range: between 0.0 and 1.0
     decay_factor = clamp(decay_factor, 0.0, 1.0);
@@ -1624,7 +1627,9 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
             ratio_brightness_fade_in = display_output_hsl_fade_in[2] / value_brightness_total;
             ratio_brightness_pulse = display_output_hsl_pulse[2] / value_brightness_total;
             ratio_brightness_background = hsl_background[2] / value_brightness_total;  // Careful, has the potential to return a value > 1.0  if total brightness is calculated before applying background
-            ratio_brightness_fade_in_to_pulse = ratio_normalized(display_output_hsl_fade_in[2], display_output_hsl_pulse[2]);
+            //ratio_brightness_fade_in_to_pulse = ratio_normalized(display_output_hsl_fade_in[2], display_output_hsl_pulse[2]);
+            ratio_brightness_fade_in_to_pulse = ratio_normalized(fade_in_value, decay_value);
+
             // Sanity check to clamp ratios to expected levels, shouldn't be needed if everything is working properly
             //ratio_brightness_fade_in = clamp(ratio_brightness_fade_in, 0.0, 1.0);
             //ratio_brightness_pulse = clamp(ratio_brightness_pulse, 0.0, 1.0);
@@ -1633,7 +1638,8 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
             // head section
             if(head_factor > 0.0){
                 if(color_combine_pulse_head_with_fade_in){
-                    display_output_hsl = interpolate_hsluv(hsl_fade_in, hsl_pulse, head_factor);                    
+                    //display_output_hsl = interpolate_hsluv(hsl_fade_in, hsl_pulse, head_factor);
+                    display_output_hsl = hsl_pulse;            
                 }
                 else{
                     display_output_hsl = hsl_pulse;
@@ -1687,21 +1693,41 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
                     display_output_hsl = hsl_pulse;
                 }
             }
+            //Non-head
+            else{
+                if(debug_fade_in && !debug_pulse){
+                    display_output_hsl = interpolate_hsluv(display_output_hsl_fade_in, display_output_hsl_fade_in, 0.0);
+                }
+                if(debug_pulse && !debug_fade_in){
+                    display_output_hsl = interpolate_hsluv(display_output_hsl_pulse, display_output_hsl_pulse, 0.0);
+                }
+                if(debug_pulse && debug_fade_in){
+                    ratio_brightness_fade_in_to_pulse = ratio_normalized(fade_in_value, decay_value);
+                    display_output_hsl_hue = interpolate_hue(display_output_hsl_fade_in[0], display_output_hsl_pulse[0], ratio_brightness_fade_in_to_pulse);  // ratio or interpolation not working yet - seems to be shifting strongly toward black
+                    display_output_hsl_lightness = max(current_location_brightness_fade_in, current_location_brightness_pulse);
+                    display_output_hsl_saturation = max(hsl_fade_in[1], hsl_pulse[1]);
+                    display_output_hsl = vec3(display_output_hsl_hue, display_output_hsl_saturation, display_output_hsl_lightness);
+                }
+            }
         }
 
         if(debug_background){
             display_output_hsl = hsl_background;
         }
 
-        if(debug_fade_in && (!debug_pulse)){
+
+        // Fade in only
+        if(debug_fade_in && !debug_pulse && !debug_head){
             display_output_hsl = interpolate_hsluv(display_output_hsl_fade_in, display_output_hsl_fade_in, 0.0);
         }
 
-        if(debug_pulse && (!debug_fade_in)){
+        // Decay pulse only
+        if(debug_pulse && !debug_fade_in && !debug_head){
             display_output_hsl = interpolate_hsluv(display_output_hsl_pulse, display_output_hsl_pulse, 0.0);
         }
 
-        if(debug_pulse && debug_fade_in){
+        // Fade in + decay pulse
+        if(debug_pulse && debug_fade_in && !debug_head){
             ratio_brightness_fade_in_to_pulse = ratio_normalized(fade_in_value, decay_value);
             //display_output_hsl = interpolate_hsluv(display_output_hsl_fade_in, display_output_hsl_pulse, ratio_brightness_fade_in_to_pulse); // pulse not showing with this line
             display_output_hsl_hue = interpolate_hue(display_output_hsl_fade_in[0], display_output_hsl_pulse[0], ratio_brightness_fade_in_to_pulse);  // ratio or interpolation not working yet - seems to be shifting strongly toward black
@@ -1709,6 +1735,10 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
             display_output_hsl_lightness = max(current_location_brightness_fade_in, current_location_brightness_pulse);
             display_output_hsl_saturation = max(hsl_fade_in[1], hsl_pulse[1]);
             display_output_hsl = vec3(display_output_hsl_hue, display_output_hsl_saturation, display_output_hsl_lightness);
+        }
+
+        if(display_output_hsl[1] > 10.0){
+            display_output_hsl[2] = min(display_output_hsl[2], get_max_safe_lightness(display_output_hsl[0]));
         }
 
         display_output_vector = hsluvToRgb(display_output_hsl);

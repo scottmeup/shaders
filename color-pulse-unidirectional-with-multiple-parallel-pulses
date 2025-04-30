@@ -25,7 +25,7 @@
 const int size_of_display_in_columns = 11;    // how many parallel pulses to run
 const bool direction_movement_horizontal = false;
 const bool direction_movement_reversed = false;
-const float duration_of_pause = 10.0;   //  Time between the front of the pulse leaving the screen and the next pulse appearing 
+const float duration_of_pause = 20.0;   //  Time between the front of the pulse leaving the screen and the next pulse appearing 
 const float duration_of_pulse = 10.0;    // Time taken for the front of the pulse to run across the display
 const float speed_global_modifier = 1.0;    // When set to 1.0, cycle will play at 1 second per unit of duration
 //
@@ -63,6 +63,7 @@ const float two_pi = TWO_PI;
 ////
 const bool debug_master_rgb = false;
 const bool debug_master_hsluv = true;
+const bool output_as_srgb = true;
 ////
 
 const bool debug_add_overlay_colorshft = false;
@@ -924,6 +925,10 @@ float generate_pulse_decay(float distance_of_current_location_behind_pulse_as_pe
 
     float decay_speed_exponential = pulse.decay_speed_exponential;
     float decay_speed_linear = pulse.decay_speed_linear;
+    if(!behind_pulse){
+        decay_speed_exponential = pulse.fade_in_speed_linear;
+        decay_speed_linear = pulse.fade_in_speed_exponential;
+    }
     float size_of_display_in_leds = pulse.size_of_display_in_leds;
     float size_pulse_head_in_leds = pulse.size_pulse_head_in_leds;
     
@@ -1565,16 +1570,15 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 
     if(debug_master_hsluv){
         float color_pulse_minimum_brightness_value = color_pulse_minimum_brightness_percent * 100.0;
-        float decay_value=(decay_factor*hsl_pulse[2]);
-        float fade_in_value=(fade_in_factor*hsl_fade_in[2]);
+        float this_location_brightness_decay=(decay_factor*hsl_pulse[2]);
+        float this_location_brightness_fade_in=(fade_in_factor*hsl_fade_in[2]);
+        float this_location_brightness_background;
         float ratio_brightness_pulse;
         float ratio_brightness_fade_in;
         float ratio_brightness_background;
         float ratio_brightness_fade_in_to_pulse;
-        float ratio_brightness_fade_in_to_pulse_v2;
         float ratio_brightness_background_to_main;
         float value_brightness_total;
-        float brightness;
         float display_output_hsl_hue;
         float display_output_hsl_saturation;
         float display_output_hsl_lightness; 
@@ -1586,13 +1590,15 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 
 
         // Generate fade-in values for the whole column: hsl_fade_in hue, saturation, and lightness from fade_in_factor
-        display_output_hsl_fade_in = clamp_hsluv(vec3(hsl_fade_in.xy, fade_in_factor*hsl_fade_in.z));
+        display_output_hsl_fade_in = clamp_hsluv(vec3(hsl_fade_in.xy, this_location_brightness_fade_in));
         // Generate decay trail values for the whole column
-        display_output_hsl_pulse = clamp_hsluv(vec3(hsl_pulse.xy, max(decay_value, color_pulse_minimum_brightness_value)));
+        display_output_hsl_pulse = clamp_hsluv(vec3(hsl_pulse.xy, max(this_location_brightness_decay, color_pulse_minimum_brightness_value)));
 
         float current_location_brightness_pulse = display_output_hsl_pulse[2];
         float current_location_brightness_fade_in = display_output_hsl_fade_in[2];
         float current_location_brightness_background = hsl_background[2];
+
+        ratio_brightness_fade_in_to_pulse = ratio_normalized(this_location_brightness_fade_in, this_location_brightness_decay);
 
         if(debug_show_intended_output){
 
@@ -1614,21 +1620,13 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
                 value_brightness_total = max(display_output_hsl_fade_in[2], display_output_hsl_pulse[2]);
             }
 
-/*
-            ratio_brightness_fade_in = display_output_hsl_fade_in[2] / value_brightness_total;
-            ratio_brightness_pulse = display_output_hsl_pulse[2] / value_brightness_total;
-            ratio_brightness_background = hsl_background[2] / value_brightness_total;
-            ratio_brightness_fade_in_to_pulse = ratio_brightness_fade_in / (ratio_brightness_fade_in + ratio_brightness_pulse); // #BUG HERE# this isn't being generated properly
-            ratio_brightness_fade_in = clamp(ratio_brightness_fade_in, 0.0, 1.0);
-            ratio_brightness_pulse = clamp(ratio_brightness_pulse, 0.0, 1.0);
-            ratio_brightness_background = clamp(ratio_brightness_background, 0.0, 1.0);
-*/
+
             // Calculate ratios of different element's lightness / brightness
             ratio_brightness_fade_in = display_output_hsl_fade_in[2] / value_brightness_total;
             ratio_brightness_pulse = display_output_hsl_pulse[2] / value_brightness_total;
             ratio_brightness_background = hsl_background[2] / value_brightness_total;  // Careful, has the potential to return a value > 1.0  if total brightness is calculated before applying background
             //ratio_brightness_fade_in_to_pulse = ratio_normalized(display_output_hsl_fade_in[2], display_output_hsl_pulse[2]);
-            ratio_brightness_fade_in_to_pulse = ratio_normalized(fade_in_value, decay_value);
+            ratio_brightness_fade_in_to_pulse = ratio_normalized(this_location_brightness_fade_in, this_location_brightness_decay);
 
             // Sanity check to clamp ratios to expected levels, shouldn't be needed if everything is working properly
             //ratio_brightness_fade_in = clamp(ratio_brightness_fade_in, 0.0, 1.0);
@@ -1651,8 +1649,20 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
                 // Generate pulse decay & fade-in. Placement ahead / behind is defined by order of first 2 arguments.
                 display_output_hsl_hue = interpolate_hue(hsl_hue_fade_in, hsl_hue_pulse, ratio_brightness_fade_in_to_pulse);  
 
-                display_output_hsl_saturation = max((hsl_fade_in[1]), (hsl_pulse[1]));  // might want to ratio this
-                display_output_hsl_lightness  = max(max((hsl_fade_in[2] * fade_in_factor), (hsl_pulse[2] * decay_factor)), hsl_background[2]);  
+                // Set lightness & hue. 
+                // Consider clean up.
+                display_output_hsl_lightness  = max(max((hsl_fade_in[2] * fade_in_factor), (hsl_pulse[2] * decay_factor)), hsl_background[2]);
+                //display_output_hsl_saturation = max((hsl_fade_in[1]), (hsl_pulse[1]));  // might want to ratio this
+                if(display_output_hsl_lightness==(hsl_fade_in[2] * fade_in_factor)){
+                    display_output_hsl_saturation=hsl_fade_in[1];
+                }
+                else if(display_output_hsl_lightness==(hsl_pulse[2] * decay_factor)){
+                    display_output_hsl_saturation=hsl_pulse[1];
+                }
+                else{
+                    display_output_hsl_saturation=hsl_background[1];
+                }
+
                 display_output_hsl = vec3(display_output_hsl_hue, display_output_hsl_saturation, display_output_hsl_lightness);
 
 
@@ -1662,7 +1672,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 
 
                 // Blend background into existing output
-                display_output_hsl[0] = interpolate_hue(display_output_hsl_hue, hsl_hue_background, ratio_brightness_background_to_main);
+                //display_output_hsl[0] = interpolate_hue(display_output_hsl_hue, hsl_hue_background, ratio_brightness_background_to_main);
 
 
                 // Apply alternate color if calculated brightness is below the minimum specified
@@ -1702,7 +1712,6 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
                     display_output_hsl = interpolate_hsluv(display_output_hsl_pulse, display_output_hsl_pulse, 0.0);
                 }
                 if(debug_pulse && debug_fade_in){
-                    ratio_brightness_fade_in_to_pulse = ratio_normalized(fade_in_value, decay_value);
                     display_output_hsl_hue = interpolate_hue(display_output_hsl_fade_in[0], display_output_hsl_pulse[0], ratio_brightness_fade_in_to_pulse);  // ratio or interpolation not working yet - seems to be shifting strongly toward black
                     display_output_hsl_lightness = max(current_location_brightness_fade_in, current_location_brightness_pulse);
                     display_output_hsl_saturation = max(hsl_fade_in[1], hsl_pulse[1]);
@@ -1728,9 +1737,8 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 
         // Fade in + decay pulse
         if(debug_pulse && debug_fade_in && !debug_head){
-            ratio_brightness_fade_in_to_pulse = ratio_normalized(fade_in_value, decay_value);
-            //display_output_hsl = interpolate_hsluv(display_output_hsl_fade_in, display_output_hsl_pulse, ratio_brightness_fade_in_to_pulse); // pulse not showing with this line
-            display_output_hsl_hue = interpolate_hue(display_output_hsl_fade_in[0], display_output_hsl_pulse[0], ratio_brightness_fade_in_to_pulse);  // ratio or interpolation not working yet - seems to be shifting strongly toward black
+            display_output_hsl_hue = interpolate_hue(display_output_hsl_fade_in[0], display_output_hsl_pulse[0], ratio_brightness_fade_in_to_pulse);  // ratio_brightness_fade_in_to_pulse is not being set properly for columns 1-3
+            //display_output_hsl_hue = interpolate_hue(display_output_hsl_fade_in[0], display_output_hsl_pulse[0], 0.0);
             //display_output_hsl_hue = interpolate_hue(display_output_hsl_fade_in[0], display_output_hsl_pulse[0], 1.0);
             display_output_hsl_lightness = max(current_location_brightness_fade_in, current_location_brightness_pulse);
             display_output_hsl_saturation = max(hsl_fade_in[1], hsl_pulse[1]);
@@ -1746,6 +1754,9 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 
 
     // Display final output
+    if(output_as_srgb){
+        display_output_vector = linear_rgb_to_srgb(display_output_vector);
+    }
     fragColor = vec4(display_output_vector.x, display_output_vector.y, display_output_vector.z, 1.0);
 }
 
@@ -1757,5 +1768,6 @@ void main() {
     iResolution = u_resolution;
     mainImage(color, gl_FragCoord.xy);
     FragColor = color;
+    //FragColor = vec4(linear_rgb_to_srgb(color.xyz), 1.0); //SRGB conversion
 }
 #endif

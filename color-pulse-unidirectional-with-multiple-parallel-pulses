@@ -156,6 +156,7 @@ void Initialize_pulse_settings_array(inout Pulse_settings pulse[size_of_display_
     // Use order of variables listed above in "struct Pulse_settings"
     //                                                                                                              LEDs in |Pulse |Decay|Decay|Fade |Fade | Bright | Min    | Cufoff| BG + | Head+| LED   | 1st+ 
     //                              Pulse-color  |  Pause-color         | Fade-in color       | Background-color  | Display | Head | Exp | Lin | Exp | Lin | Cutoff | Bright | BG    | Pause| Fade | Output| last
+/*
     pulse[0]  = Pulse_settings(vec3(1.0, 0.0, 0.0 ), vec3(0.0, 0.0, 0.05), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 5.0,      1.0,   3.0,  0.0,  0.0,   0.0,  0.0,   0.0,     false,  true, false,  true,   false);     // Device 1
     pulse[1]  = Pulse_settings(vec3(1.0, 0.75, 0.0), vec3(0.0, 0.0, 0.05), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 3.0,      1.0,   3.0,  0.0,  0.0,   0.0,  0.0,   0.0,     false,  true, false,  true,   false);     // Device 2
     pulse[2]  = Pulse_settings(vec3(1.0, 1.0, 0.0 ), vec3(0.0, 0.0, 0.1 ), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 3.0,      2.0,   3.0,  0.0,  0.0,   0.0,  0.0,   0.0,     false,  true, false,  true,   false);     // Device 3
@@ -169,8 +170,37 @@ void Initialize_pulse_settings_array(inout Pulse_settings pulse[size_of_display_
     pulse[8]  = Pulse_settings(vec3(1.0, 0.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(1.0, 0.0, 1.0), vec3(0.0, 0.0, 0.0), 2.0,      1.0,   3.0,  0.0,  1.0,   3.0,  0.0,   0.0,     false,  true, false,  false,  false );     // Device 9
     pulse[9]  = Pulse_settings(vec3(1.0, 1.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(1.0, 1.0, 1.0), vec3(0.0, 0.0, 0.0), 4.0,      0.0,   9.0,  0.0,  9.0,   0.0,  0.0,   0.0,     false,  true, false,  false,  false );    // Device 10
     pulse[10] = Pulse_settings(vec3(1.0, 1.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(1.0, 1.0, 1.0), vec3(0.0, 0.0, 0.0), 4.0,      0.0,   0.0,  1.5,  0.0,   0.0,  0.0,   0.3,     false,  true, false,  false,  false );    // Device 11
+*/
 
+    // Test cases for fade-in
+    pulse[0]  = Pulse_settings(vec3(1.0, 0.0, 0.0 ), vec3(0.0, 0.0, 0.05), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 5.0,      1.0,   0.0,  0.0,  1.0,   0.0,  0.0,   0.0,     false,  true, false,  true,   false);     // Device 1
+    pulse[1]  = Pulse_settings(vec3(1.0, 0.75, 0.0), vec3(0.0, 0.0, 0.05), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 3.0,      1.0,   0.0,  0.0,  0.0,   1.0,  0.0,   0.0,     false,  true, false,  true,   false);     // Device 2
+    pulse[2]  = Pulse_settings(vec3(1.0, 1.0, 0.0 ), vec3(0.0, 0.0, 0.1 ), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 3.0,      2.0,   0.0,  0.0,  1.0,   1.0,  0.0,   0.0,     false,  true, false,  true,   false);     // Device 3
+    pulse[3]  = Pulse_settings(vec3(0.0, 1.0, 0.0 ), vec3(0.0, 0.0, 0.0 ), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 14.0,     1.0,   0.0,  0.0,  0.0,   0.0,  0.0,   0.0,     false,  true, false,  true,   false);     // Device 4
+    pulse[4]  = Pulse_settings(vec3(0.0, 0.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(0.0, 1.0, 0.0), vec3(0.0, 1.0, 0.0), 8.0,      1.0,   0.0,  0.0,  2.0,   0.0,  0.0,   0.0,     false,  true, false,  true,   false);     // Device 5
+    pulse[5]  = Pulse_settings(vec3(0.0, 1.0, 1.0 ), vec3(0.0, 0.0, 0.5 ), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), 8.0,      1.0,   0.0,  0.0,  0.0,   2.0,  0.1,   0.0,     false,  true, false,  true,   false);     // Device 6
+    pulse[6]  = Pulse_settings(vec3(0.0, 0.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(0.5, 0.0, 1.0), vec3(0.0, 0.0, 0.0), 8.0,      1.0,   0.0,  0.0,  2.0,   2.0,  0.0,   0.0,     false,  true, true,   true,   false);     // Device 7
+    pulse[7]  = Pulse_settings(vec3(1.0, 0.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(1.0, 0.0, 1.0), vec3(0.0, 0.0, 0.0), 2.0,      1.0,   0.0,  0.0,  0.0,   0.0,  0.0,   0.0,     false,  true, false,  true,   true );     // Device 8
+    pulse[8]  = Pulse_settings(vec3(1.0, 0.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(1.0, 0.0, 1.0), vec3(0.0, 0.0, 0.0), 2.0,      1.0,   0.0,  0.0,  3.0,   0.0,  0.0,   0.0,     false,  true, false,  false,  false );     // Device 9
+    pulse[9]  = Pulse_settings(vec3(1.0, 1.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(1.0, 1.0, 1.0), vec3(0.0, 0.0, 0.0), 4.0,      0.0,   0.0,  0.0,  0.0,   3.0,  0.0,   0.0,     false,  true, false,  false,  false );    // Device 10
+    pulse[10] = Pulse_settings(vec3(1.0, 1.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(1.0, 1.0, 1.0), vec3(0.0, 0.0, 0.0), 4.0,      0.0,   0.0,  0.0,  0.0,   0.0,  0.0,   0.3,     false,  true, false,  false,  false );    // Device 11
 
+/*
+
+    // Test cases for decay pulse
+    pulse[0]  = Pulse_settings(vec3(1.0, 0.0, 0.0 ), vec3(0.0, 0.0, 0.05), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 5.0,      1.0,   1.0,  0.0,  0.0,   0.0,  0.0,   0.0,     false,  true, false,  true,   false);     // Device 1
+    pulse[1]  = Pulse_settings(vec3(1.0, 0.75, 0.0), vec3(0.0, 0.0, 0.05), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 3.0,      1.0,   0.0,  1.0,  0.0,   0.0,  0.0,   0.0,     false,  true, false,  true,   false);     // Device 2
+    pulse[2]  = Pulse_settings(vec3(1.0, 1.0, 0.0 ), vec3(0.0, 0.0, 0.1 ), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 3.0,      2.0,   1.0,  1.0,  0.0,   0.0,  0.0,   0.0,     false,  true, false,  true,   false);     // Device 3
+    pulse[3]  = Pulse_settings(vec3(0.0, 1.0, 0.0 ), vec3(0.0, 0.0, 0.0 ), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 14.0,     1.0,   0.0,  0.0,  0.0,   0.0,  0.0,   0.0,     false,  true, false,  true,   false);     // Device 4
+    pulse[4]  = Pulse_settings(vec3(0.0, 0.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(0.0, 1.0, 0.0), vec3(0.0, 1.0, 0.0), 8.0,      1.0,   2.0,  0.0,  0.0,   0.0,  0.0,   0.0,     false,  true, false,  true,   false);     // Device 5
+    pulse[5]  = Pulse_settings(vec3(0.0, 1.0, 1.0 ), vec3(0.0, 0.0, 0.5 ), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), 8.0,      1.0,   0.0,  2.0,  0.0,   0.0,  0.1,   0.0,     false,  true, false,  true,   false);     // Device 6
+    pulse[6]  = Pulse_settings(vec3(0.0, 0.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(0.5, 0.0, 1.0), vec3(0.0, 0.0, 0.0), 8.0,      1.0,   2.0,  2.0,  0.0,   0.0,  0.0,   0.0,     false,  true, true,   true,   false);     // Device 7
+    pulse[7]  = Pulse_settings(vec3(1.0, 0.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(1.0, 0.0, 1.0), vec3(0.0, 0.0, 0.0), 2.0,      1.0,   0.0,  0.0,  0.0,   0.0,  0.0,   0.0,     false,  true, false,  true,   true );     // Device 8
+    pulse[8]  = Pulse_settings(vec3(1.0, 0.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(1.0, 0.0, 1.0), vec3(0.0, 0.0, 0.0), 2.0,      1.0,   3.0,  0.0,  0.0,   0.0,  0.0,   0.0,     false,  true, false,  false,  false );     // Device 9
+    pulse[9]  = Pulse_settings(vec3(1.0, 1.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(1.0, 1.0, 1.0), vec3(0.0, 0.0, 0.0), 4.0,      0.0,   0.0,  3.0,  0.0,   0.0,  0.0,   0.0,     false,  true, false,  false,  false );    // Device 10
+    pulse[10] = Pulse_settings(vec3(1.0, 1.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(1.0, 1.0, 1.0), vec3(0.0, 0.0, 0.0), 4.0,      0.0,   3.0,  3.0,  0.0,   0.0,  0.0,   0.3,     false,  true, false,  false,  false );    // Device 11
+
+*/
 
     /*
 
@@ -929,6 +959,7 @@ float generate_pulse_decay(float distance_of_current_location_behind_pulse_as_pe
     float decay_speed_exponential; // = pulse.decay_speed_exponential;
     float decay_speed_linear; // = pulse.decay_speed_linear;
     
+    /*
     if(behind_pulse){
         decay_speed_exponential = pulse.decay_speed_exponential;
         decay_speed_linear = pulse.decay_speed_linear;
@@ -937,7 +968,12 @@ float generate_pulse_decay(float distance_of_current_location_behind_pulse_as_pe
         decay_speed_exponential = pulse.fade_in_speed_exponential;
         decay_speed_linear = pulse.fade_in_speed_linear;
     }
+    */
     
+    decay_speed_exponential = pulse.fade_in_speed_exponential;
+    decay_speed_linear = pulse.fade_in_speed_linear;
+
+
     float size_of_display_in_leds = pulse.size_of_display_in_leds;
     float size_pulse_head_in_leds = pulse.size_pulse_head_in_leds;
     
@@ -1539,7 +1575,6 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         }
 
         else if(debug_fade_in){
-            //display_output_vector = ones3d * (decay_factor + fade_in_factor);
 
             float border_fade_in;
             float offset_area;
@@ -1563,11 +1598,6 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
                 offset_area = 1.0;
             }
 
-            /*
-            if((distance_of_current_location_in_front_of_pulse_as_percent_of_display < 0.002) || (distance_of_current_location_behind_pulse_as_percent_of_display < 0.002)){
-                pulse_index = 1.0;
-            }
-            */
 
             if(close_to(distance_of_current_location_in_front_of_pulse_as_percent_of_display, 0.01, 0.01)){
                 pulse_index = 1.0;
@@ -1576,6 +1606,40 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
             display_output_vector += ((border_fade_in * blue) + ((fade_in_factor) * red) + (offset_area * green) + (pulse_index) ) * ones3d;
             display_output_vector = restrict_vec3_from_0_to_1(display_output_vector);
         }
+
+       else if(debug_pulse){
+
+            float border_decay;
+            float offset_area;
+            float pulse_index;
+            vec3 debug_vector = vec3(0.0, 0.0, 0.0);
+            if(decay_factor == 1.0){
+                decay_factor = 0.0;
+            }
+
+
+            if(decay_factor > 0.99){
+                border_decay = 1.0;
+                decay_factor = 0.0;
+            }                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+
+            if(close_to(distance_of_current_location_behind_pulse_as_percent_of_display, decay_and_fade_offset.x, 0.01)){
+                offset_area = 1.0;
+            }
+            if(close_to(distance_of_current_location_in_front_of_pulse_as_percent_of_display, decay_and_fade_offset.y, 0.01)){
+                offset_area = 1.0;
+            }
+
+
+            if(close_to(distance_of_current_location_in_front_of_pulse_as_percent_of_display, 0.01, 0.01)){
+                pulse_index = 1.0;
+            }
+
+            display_output_vector += ((border_decay * blue) + ((decay_factor) * red) + (offset_area * green) + (pulse_index) ) * ones3d;
+            display_output_vector = restrict_vec3_from_0_to_1(display_output_vector);
+        }
+
+
 
     }
 

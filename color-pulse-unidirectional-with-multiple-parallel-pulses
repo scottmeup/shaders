@@ -61,15 +61,15 @@ const float pi = PI;
 const float two_pi = TWO_PI;
 
 ////
-const bool debug_master_rgb = false;
-const bool debug_master_hsluv = true;
+const bool debug_master_rgb = true;
+const bool debug_master_hsluv = false;
 const bool output_as_srgb = true;
 ////
 
 const bool debug_add_overlay_colorshft = false;
 
-const bool debug_head = true;
-const bool debug_pulse = true;                
+const bool debug_head = false;
+const bool debug_pulse = false;                
 const bool debug_fade_in = true;  
 const bool debug_background = false;
 const bool debug_decay_and_fade_in = false;
@@ -165,10 +165,11 @@ void Initialize_pulse_settings_array(inout Pulse_settings pulse[size_of_display_
     pulse[6]  = Pulse_settings(vec3(0.0, 0.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(0.5, 0.0, 1.0), vec3(0.0, 0.0, 0.0), 8.0,      1.0,   3.0,  0.0, 64.0,   0.0,  0.0,   0.0,     false,  true, true,   true,   false);     // Device 7
 //    pulse[7]  = Pulse_settings(vec3(1.0, 0.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(1.0, 0.0, 1.0), vec3(0.0, 0.0, 0.0), 3.0,      1.0,   3.0,  0.0,  1.0,   3.0,  0.025,   0.0,     false,  true, false,  true,   true );     // Device 8
 //    pulse[8]  = Pulse_settings(vec3(0.5, 0.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(0.5, 0.0, 1.0), vec3(0.0, 0.0, 0.0), 4.0,      0.0,   0.0,  1.0,  0.0,   1.0,  0.025,   0.0,     false,  true, false,  true,   false );    // Device 9
+    pulse[7]  = Pulse_settings(vec3(1.0, 0.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(1.0, 0.0, 1.0), vec3(0.0, 0.0, 0.0), 2.0,      1.0,   3.0,  0.0,  1.0,   3.0,  0.0,   0.0,     false,  true, false,  true,   true );     // Device 8
+    pulse[8]  = Pulse_settings(vec3(1.0, 0.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(1.0, 0.0, 1.0), vec3(0.0, 0.0, 0.0), 2.0,      1.0,   3.0,  0.0,  1.0,   3.0,  0.0,   0.0,     false,  true, false,  false,  false );     // Device 9
     pulse[9]  = Pulse_settings(vec3(1.0, 1.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(1.0, 1.0, 1.0), vec3(0.0, 0.0, 0.0), 4.0,      0.0,   9.0,  0.0,  9.0,   0.0,  0.0,   0.0,     false,  true, false,  false,  false );    // Device 10
     pulse[10] = Pulse_settings(vec3(1.0, 1.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(1.0, 1.0, 1.0), vec3(0.0, 0.0, 0.0), 4.0,      0.0,   0.0,  1.5,  0.0,   0.0,  0.0,   0.3,     false,  true, false,  false,  false );    // Device 11
-    pulse[7]  = Pulse_settings(vec3(1.0, 0.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(1.0, 0.0, 1.0), vec3(0.0, 0.0, 0.0), 2.0,      1.0,   3.0,  0.0,  1.0,   3.0,  0.0,   0.0,     false,  true, false,  true,   true );     // Device 8
-    pulse[8]  = Pulse_settings(vec3(1.0, 0.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(1.0, 0.0, 1.0), vec3(0.0, 0.0, 0.0), 2.0,      1.0,   3.0,  0.0,  1.0,   3.0,  0.0,   0.0,     false,  true, false,  false,   false );     // Device 8
+
 
 
     /*
@@ -489,10 +490,12 @@ vec4   luvToRgb(float x, float y, float z, float a) {return   luvToRgb( vec4(x,y
 
 float ratio_normalized(float a, float b){
     if((a >= 0.0) && (b >= 0.0)){
-        float ratio = (b - a + epsilon_0_to_100) / (b + a + (2*epsilon_0_to_100));
+    
+        float ratio = ((b - a) + epsilon_0_to_100) / (b + a + (2*epsilon_0_to_100));
         ratio *= 0.5;
         ratio += 0.5;
         return ratio;
+
     }
     else{
         return sin(3.0 * iTime);
@@ -914,7 +917,7 @@ vec3 generate_fade_in(float current_location_on_y_axis_of_display_as_percent_of_
 
 float generate_pulse_decay(float distance_of_current_location_behind_pulse_as_percent_of_display, bool behind_pulse, float pulse_location_as_percent_of_display, float size_of_cycle_as_percent_of_display, float offset_from_pulse_index, Pulse_settings pulse){
     // Generate decay pulse
-    // #TO DO / BUG#:
+    // #TO DO# / #BUG#:
     // - Differentiate between forward and backward decay direction for offset + decay rates
 
     // Positive offsets move the beginning of calculations behind the pulse
@@ -923,12 +926,18 @@ float generate_pulse_decay(float distance_of_current_location_behind_pulse_as_pe
     float distance_plus_offset_behind_pulse_as_percent_of_display = (distance_of_current_location_behind_pulse_as_percent_of_display - offset_from_pulse_index);
     //distance_plus_offset_behind_pulse_as_percent_of_display = mod(distance_plus_offset_behind_pulse_as_percent_of_display, size_of_cycle_as_percent_of_display);
 
-    float decay_speed_exponential = pulse.decay_speed_exponential;
-    float decay_speed_linear = pulse.decay_speed_linear;
-    if(!behind_pulse){
-        decay_speed_exponential = pulse.fade_in_speed_linear;
-        decay_speed_linear = pulse.fade_in_speed_exponential;
+    float decay_speed_exponential; // = pulse.decay_speed_exponential;
+    float decay_speed_linear; // = pulse.decay_speed_linear;
+    
+    if(behind_pulse){
+        decay_speed_exponential = pulse.decay_speed_exponential;
+        decay_speed_linear = pulse.decay_speed_linear;
     }
+    else{              // #BUG# setting this code mixes fade-in with decay pulse, behind the pulse where the decay pulse should be.
+        decay_speed_exponential = pulse.fade_in_speed_exponential;
+        decay_speed_linear = pulse.fade_in_speed_linear;
+    }
+    
     float size_of_display_in_leds = pulse.size_of_display_in_leds;
     float size_pulse_head_in_leds = pulse.size_pulse_head_in_leds;
     
@@ -994,8 +1003,8 @@ float generate_pulse_decay(float distance_of_current_location_behind_pulse_as_pe
             display_output_vector_column = ( pulse.rgb_pulse * decay_total );
         }
         */
-        float decay_linear = 1.0 - (distance_plus_offset_behind_pulse_as_percent_of_display * pulse.decay_speed_linear);
-        float decay_exponential = exp(-distance_plus_offset_behind_pulse_as_percent_of_display * pulse.decay_speed_exponential);
+        float decay_linear = 1.0 - (distance_plus_offset_behind_pulse_as_percent_of_display * decay_speed_linear);
+        float decay_exponential = exp(-distance_plus_offset_behind_pulse_as_percent_of_display * decay_speed_exponential);
         decay_total = ( decay_linear * decay_exponential );
         
         /*
@@ -1316,7 +1325,8 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     // decay_and_fade_offset.x (decay) and decay_and_fade_offset.y (fade-in) are the distance from pulse index to use as the start of calculations
     float decay_factor =   generate_pulse_decay( distance_of_current_location_behind_pulse_as_percent_of_display, true, pulse_location_as_percent_of_display, size_of_cycle_as_percent_of_display, decay_and_fade_offset.x, pulse);
     float fade_in_factor = generate_pulse_decay( distance_of_current_location_in_front_of_pulse_as_percent_of_display, false, pulse_location_as_percent_of_display, size_of_cycle_as_percent_of_display, decay_and_fade_offset.y, pulse);
-    
+
+
     // Keep values in a sensible range: between 0.0 and 1.0
     decay_factor = clamp(decay_factor, 0.0, 1.0);
     fade_in_factor = clamp(fade_in_factor, 0.0, 1.0);
@@ -1392,46 +1402,9 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         }
         
 
-        if(debug_interpolate_hue){
-            float hue_input_1 = mod(iTime*70.0, 360.0);
-            float hue_input_2 = mod((-iTime)*30.0, 360.0);
-            //float hue_input_2 = 270.0;
-            float weight = 0.0;
-            float lightness = 70.0;
-            //float lightness = get_max_safe_lightness(hue);
-            //float weight = normalize_trig_function(sin(iTime));
 
 
-            float hue = interpolate_hue(hue_input_1, hue_input_2, weight);
-            vec3 display_output_hsl = vec3(hue, 100, lightness);
-            display_output_vector = hsluvToRgb(display_output_hsl);
-        }
 
-        if(debug_interpolate_hsl){
-            float hue_input_1 = mod(iTime*70.0, 360.0);
-            float hue_input_2 = mod((-iTime)*30.0, 360.0);
-            float lightness_1 = (50.0 * normalize_trig_function(sin(iTime*0.5))) + 20.0;
-            float lightness_2 = (50.0 * normalize_trig_function(sin(iTime*1.1))) + 20.0;
-            //float lightness_1 = 100.0 * normalize_trig_function(sin(iTime*0.5));
-            //float lightness_2 = 100.0 * normalize_trig_function(sin(iTime*1.1));
-            float saturation_1 = 100.0 * normalize_trig_function(sin(iTime*1.3));
-            float saturation_2 = 100.0 * normalize_trig_function(sin(iTime*1.7));
-            float weight = normalize_trig_function(sin(iTime*0.19));
-
-            //float saturation_1 = 70.0;
-            //float saturation_2 = 70.0;
-            //float lightness_1 = 70.0;
-            //float lightness_2 = 0.0;
-            //float weight = 0.5;
-            //float saturation_1 = 50.0;
-            //float saturation_2 = 0.0;
-
-            vec3 hsl_1 = vec3(hue_input_1, saturation_1, saturation_1);
-            vec3 hsl_2 = vec3(hue_input_2, saturation_2, saturation_2);
-
-            vec3 display_output_hsl = interpolate_hsluv(hsl_1, hsl_2, weight);
-            display_output_vector = hsluvToRgb(display_output_hsl);
-        }
 
         if(debug_background){
             display_output_vector += rgb_background;
@@ -1488,7 +1461,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 
 
 
-        if(debug_head && debug_decay_and_fade_in){
+        if(debug_head && debug_pulse && debug_fade_in){
             float decay_border;
             float fade_in_border;
             float decay_or_head_border;
@@ -1510,7 +1483,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
             display_output_vector += ones3d * head_factor;
             display_output_vector = restrict_vec3_from_0_to_1(display_output_vector);
         }
-        else if(debug_decay_and_fade_in){
+        else if(debug_pulse && debug_fade_in){
             //display_output_vector = ones3d * (decay_factor + fade_in_factor);
 
             float border_fade_in;
@@ -1564,6 +1537,46 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
             display_output_vector += ((border_fade_in * blue) + (border_decay * blue) + ((fade_in_factor + decay_factor) * red) + (offset_area * green) + (pulse_index) ) * ones3d;
             display_output_vector = restrict_vec3_from_0_to_1(display_output_vector);
         }
+
+        else if(debug_fade_in){
+            //display_output_vector = ones3d * (decay_factor + fade_in_factor);
+
+            float border_fade_in;
+            float offset_area;
+            float pulse_index;
+            vec3 debug_vector = vec3(0.0, 0.0, 0.0);
+
+            if(fade_in_factor == 1.0){
+                fade_in_factor = 0.0;
+            }
+
+            if(fade_in_factor > 0.99){
+                border_fade_in = 1.0;
+                fade_in_factor = 0.0;
+            }
+
+
+            if(close_to(distance_of_current_location_behind_pulse_as_percent_of_display, decay_and_fade_offset.x, 0.01)){
+                offset_area = 1.0;
+            }
+            if(close_to(distance_of_current_location_in_front_of_pulse_as_percent_of_display, decay_and_fade_offset.y, 0.01)){
+                offset_area = 1.0;
+            }
+
+            /*
+            if((distance_of_current_location_in_front_of_pulse_as_percent_of_display < 0.002) || (distance_of_current_location_behind_pulse_as_percent_of_display < 0.002)){
+                pulse_index = 1.0;
+            }
+            */
+
+            if(close_to(distance_of_current_location_in_front_of_pulse_as_percent_of_display, 0.01, 0.01)){
+                pulse_index = 1.0;
+            }
+
+            display_output_vector += ((border_fade_in * blue) + ((fade_in_factor) * red) + (offset_area * green) + (pulse_index) ) * ones3d;
+            display_output_vector = restrict_vec3_from_0_to_1(display_output_vector);
+        }
+
     }
 
 
@@ -1589,9 +1602,9 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         vec3 display_output_hsl_fade_in;
 
 
-        // Generate fade-in values for the whole column: hsl_fade_in hue, saturation, and lightness from fade_in_factor
+        // Generate fade-in & decay pulse values for the whole column:
+        // Hue & saturation as constant from color preset, lightness from preset lightness * decay or fade-in calculation over distance
         display_output_hsl_fade_in = clamp_hsluv(vec3(hsl_fade_in.xy, this_location_brightness_fade_in));
-        // Generate decay trail values for the whole column
         display_output_hsl_pulse = clamp_hsluv(vec3(hsl_pulse.xy, max(this_location_brightness_decay, color_pulse_minimum_brightness_value)));
 
         float current_location_brightness_pulse = display_output_hsl_pulse[2];
@@ -1636,7 +1649,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
             // head section
             if(head_factor > 0.0){
                 if(color_combine_pulse_head_with_fade_in){
-                    //display_output_hsl = interpolate_hsluv(hsl_fade_in, hsl_pulse, head_factor);
+                    //display_output_hsl = interpolate_hsluv(hsl_fade_in, hsl_pulse, head_factor);  
                     display_output_hsl = hsl_pulse;            
                 }
                 else{
@@ -1727,7 +1740,8 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 
         // Fade in only
         if(debug_fade_in && !debug_pulse && !debug_head){
-            display_output_hsl = interpolate_hsluv(display_output_hsl_fade_in, display_output_hsl_fade_in, 0.0);
+            //display_output_hsl = interpolate_hsluv(display_output_hsl_fade_in, display_output_hsl_fade_in, 0.0);
+            display_output_hsl = display_output_hsl_fade_in;
         }
 
         // Decay pulse only
@@ -1749,8 +1763,51 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
             display_output_hsl[2] = min(display_output_hsl[2], get_max_safe_lightness(display_output_hsl[0]));
         }
 
+        if(debug_interpolate_hsl){
+        float hue_input_1 = mod(iTime*70.0, 360.0);
+        float hue_input_2 = mod((-iTime)*30.0, 360.0);
+        float lightness_1 = (50.0 * normalize_trig_function(sin(iTime*0.5))) + 20.0;
+        float lightness_2 = (50.0 * normalize_trig_function(sin(iTime*1.1))) + 20.0;
+        //float lightness_1 = 100.0 * normalize_trig_function(sin(iTime*0.5));
+        //float lightness_2 = 100.0 * normalize_trig_function(sin(iTime*1.1));
+        float saturation_1 = 100.0 * normalize_trig_function(sin(iTime*1.3));
+        float saturation_2 = 100.0 * normalize_trig_function(sin(iTime*1.7));
+        float weight = normalize_trig_function(sin(iTime*0.19));
+
+        //float saturation_1 = 70.0;
+        //float saturation_2 = 70.0;
+        //float lightness_1 = 70.0;
+        //float lightness_2 = 0.0;
+        //float weight = 0.5;
+        //float saturation_1 = 50.0;
+        //float saturation_2 = 0.0;
+
+        vec3 hsl_1 = vec3(hue_input_1, saturation_1, saturation_1);
+        vec3 hsl_2 = vec3(hue_input_2, saturation_2, saturation_2);
+
+        vec3 display_output_hsl = interpolate_hsluv(hsl_1, hsl_2, weight);
+        display_output_vector = hsluvToRgb(display_output_hsl);
+        }
+
+        if(debug_interpolate_hue){
+            float hue_input_1 = mod(iTime*70.0, 360.0);
+            float hue_input_2 = mod((-iTime)*30.0, 360.0);
+            //float hue_input_2 = 270.0;
+            float weight = 0.0;
+            float lightness = 70.0;
+            //float lightness = get_max_safe_lightness(hue);
+            //float weight = normalize_trig_function(sin(iTime));
+
+
+            float hue = interpolate_hue(hue_input_1, hue_input_2, weight);
+            vec3 display_output_hsl = vec3(hue, 100, lightness);
+            display_output_vector = hsluvToRgb(display_output_hsl);
+        }
+
         display_output_vector = hsluvToRgb(display_output_hsl);
     }
+
+
 
 
     // Display final output
@@ -1768,6 +1825,5 @@ void main() {
     iResolution = u_resolution;
     mainImage(color, gl_FragCoord.xy);
     FragColor = color;
-    //FragColor = vec4(linear_rgb_to_srgb(color.xyz), 1.0); //SRGB conversion
 }
 #endif

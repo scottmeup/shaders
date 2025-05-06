@@ -140,7 +140,7 @@ void Initialize_pulse_settings_array(inout Pulse_settings pulse[size_of_display_
     pulse[1]  = Pulse_settings(vec3(1.0, 0.75, 0.0), vec3(0.0, 0.0, 0.05), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 3.0,      1.0,   3.0,  0.0,  0.0,   0.0,  0.0,   0.0,     false,  true, false,  true,   false);     // Device 2
     pulse[2]  = Pulse_settings(vec3(1.0, 1.0, 0.0 ), vec3(0.0, 0.0, 0.1 ), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 3.0,      2.0,   3.0,  0.0,  0.0,   0.0,  0.0,   0.0,     false,  true, false,  true,   false);     // Device 3
     pulse[3]  = Pulse_settings(vec3(0.0, 1.0, 0.0 ), vec3(0.0, 0.0, 0.0 ), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 14.0,     1.0,   3.0,  0.0,  14.0,  0.0,  0.0,   0.0,     false,  true, false,  true,   false);     // Device 4
-    pulse[4]  = Pulse_settings(vec3(0.0, 0.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(0.0, 1.0, 0.0), vec3(0.0, 1.0, 0.0), 8.0,      1.0,   3.0,  0.0,  0.0,   0.0,  0.0,   0.0,     false,  true, false,  true,   false);     // Device 5
+    pulse[4]  = Pulse_settings(vec3(0.0, 0.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(0.0, 1.0, 0.0), vec3(0.0, 1.0, 0.0), 8.0,      1.0,   3.0,  0.0,  0.0,   0.0,  0.0,   0.0,     false,  true, false,  true,   false);     // Device 5     //#TO DO# Look at this case - I think the color mixing could be better between head and decay pulse - transition is pretty stark
     pulse[5]  = Pulse_settings(vec3(0.0, 1.0, 1.0 ), vec3(0.0, 0.0, 0.5 ), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), 8.0,      1.0,   3.0,  0.0,  0.0,   0.0,  0.1,     0.0,     false,  true, false,  true,   false);     // Device 6
     pulse[6]  = Pulse_settings(vec3(0.0, 0.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(0.5, 0.0, 1.0), vec3(0.0, 0.0, 0.0), 8.0,      1.0,   3.0,  0.0,  16.0,   0.0,  0.0,   0.0,     false,  true, true,   true,   false);     // Device 7
 //    pulse[7]  = Pulse_settings(vec3(1.0, 0.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(1.0, 0.0, 1.0), vec3(0.0, 0.0, 0.0), 3.0,      1.0,   3.0,  0.0,  1.0,   3.0,  0.025,   0.0,     false,  true, false,  true,   true );     // Device 8
@@ -1687,7 +1687,8 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         float ratio_brightness_fade_in;
         float ratio_brightness_background;
         float ratio_brightness_fade_in_to_pulse;
-        float ratio_brightness_background_to_main;
+        float ratio_brightness_background_to_fade_in_and_pulse;
+        float ratio_brightness_background_to_head;
         float value_brightness_total;
         float display_output_hsl_hue;
         float display_output_hsl_saturation;
@@ -1736,6 +1737,8 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
             ratio_brightness_pulse = display_output_hsl_pulse[2] / value_brightness_total;
             ratio_brightness_background = hsl_background[2] / value_brightness_total;  // Careful, has the potential to return a value > 1.0  if total brightness is calculated before applying background
             ratio_brightness_fade_in_to_pulse = ratio_normalized(this_location_brightness_fade_in, this_location_brightness_decay);
+            ratio_brightness_background_to_fade_in_and_pulse = ratio_normalized(current_location_brightness_background, (current_location_brightness_pulse+current_location_brightness_fade_in));
+
 
             // Sanity check to clamp ratios to expected levels, shouldn't be needed if everything is working properly
             ratio_brightness_fade_in = clamp(ratio_brightness_fade_in, 0.0, 1.0);
@@ -1751,6 +1754,9 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
                 else{
                     display_output_hsl = hsl_pulse;
                 }
+                // Combine head with background 
+                ratio_brightness_background_to_head = ratio_normalized(current_location_brightness_background, display_output_hsl[2]);
+                display_output_hsl = interpolate_hsluv(hsl_background, display_output_hsl, ratio_brightness_background_to_head);
             }
             // non-head section
             else{
@@ -1775,30 +1781,26 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
                 display_output_hsl = vec3(display_output_hsl_hue, display_output_hsl_saturation, display_output_hsl_lightness);
 
 
-                // Generate background values
-                //ratio_brightness_background_to_main = ratio_brightness_background / (display_output_hsl[2] + ratio_brightness_background); // #BUG# - returning a value < 0.0 or > 1.0
-                //ratio_brightness_background_to_main = display_output_hsl[2] / (display_output_hsl[2] + ratio_brightness_background);
-                ratio_brightness_background_to_main = ratio_normalized(current_location_brightness_background, (current_location_brightness_pulse+current_location_brightness_fade_in));
-
-
                 // Blend background into existing output
-                display_output_hsl[0] = interpolate_hue(hsl_hue_background, display_output_hsl_hue, ratio_brightness_background_to_main);
-
-
-                // Apply alternate color if calculated brightness is below the minimum specified
-                if(value_brightness_total < (color_brightness_cutoff*100.0)){
-                    display_output_hsl = hsl_pause;
-                }
-
-
-
+                display_output_hsl[0] = interpolate_hue(hsl_hue_background, display_output_hsl_hue, ratio_brightness_background_to_fade_in_and_pulse);
 
             }
+
+
+
+
+
+            // Apply alternate color if calculated brightness is below the minimum specified
+            if(value_brightness_total < (color_brightness_cutoff*100.0)){
+                display_output_hsl = hsl_pause;
+            }
+
+
+
             // Limit to values actually inside the colorspace
             display_output_hsl = clamp_hsluv(display_output_hsl);
 
             // optimize chroma by restricting lightness
-            // Consider whether this is needed or not - base colors are already checked for lightness, so only transition colors will be adjusted
             if(display_output_hsl[1] > 10.0){
                 display_output_hsl[2] = min(display_output_hsl[2], get_max_safe_lightness(display_output_hsl[0]));
             }

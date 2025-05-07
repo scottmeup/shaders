@@ -1,0 +1,621 @@
+//#version 430 // Must be line 1 
+// Begin GLSL viewer Section 1 
+// Comment this section out if there are problems running on shadertoy
+#ifdef GL_ES
+precision mediump float;
+#endif 
+#define u_tex0 iChannel0;
+uniform vec2 u_resolution;
+uniform vec2 u_mouse;
+uniform float u_time;
+uniform sampler2D u_tex0;
+//precision highp float;
+vec2 iResolution;   // viewport resolution (in pixels)
+float iTime;        // shader playback time (in seconds)
+vec4 iMouse;        // mouse pixel coords (xy), click state (zw)
+out vec4 FragColor;         // Final color output
+void mainImage(out vec4 fragColor, in vec2 fragCoord);
+// End GLSL viewer Section 1
+
+#define PI 3.14159265358979323846264338327950288419716939937510582097494459230781640628
+#define DEGREE_TO_RAD 180.0/PI
+#define RAD_TO_DEGREE PI/180.0
+
+const vec3 red =       vec3(1.0, 0.0, 0.0);
+const vec3 green =     vec3(0.0, 1.0, 0.0);
+const vec3 blue =      vec3(0.0, 0.0, 1.0);
+const vec3 white =     vec3(1.0, 1.0, 1.0);
+const vec3 black =     vec3(0.0, 0.0, 0.0);
+const vec3 zeroes3d =  white;
+const vec3 ones3d =    black;
+
+const float pi = PI;
+const float circle_size = 360.0;
+//not working as intended
+const float degree = DEGREE_TO_RAD;
+const float radian = RAD_TO_DEGREE;
+
+const vec3 D65 = vec3(0.95047, 1.00000, 1.08883); // Reference white
+
+
+// Helper functions
+float wrap_to_space(float variable, float size_of_space) {
+    return mod(mod(variable, size_of_space) + size_of_space, size_of_space);
+}
+
+float maxChroma(float L) {
+    // Simple approximation: clip chroma based on lightness
+    return (L < 1.0 || L > 99.0) ? 0.0 : mix(0.0, 1.0, smoothstep(1.0, 99.0, L));
+}
+
+vec3 srgb_to_linear_rgb(vec3 c) {
+    return mix(
+        c / 12.92,
+        pow((c + 0.055) / 1.055, vec3(2.4)),
+        step(0.04045, c)
+    );
+}
+
+vec3 linear_rgb_to_srgb(vec3 c) {
+    return mix(
+        c * 12.92,
+        1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055,
+        step(0.0031308, c)
+    );
+}
+
+
+
+// Interpolate HSLuv
+// Interpolation function for hue, handling circular wraparound
+float interpolateHue(float h1, float h2, float t) {
+    float delta = h2 - h1;
+
+    if (abs(delta) > 180.0) {
+        if (delta > 0.0)
+            delta -= 360.0;
+        else
+            delta += 360.0;
+    }
+
+    float result = h1 + t * delta;
+
+    // Wrap around [0, 360)
+    if (result < 0.0) result += 360.0;
+    if (result >= 360.0) result -= 360.0;
+
+    return result;
+}
+
+// Interpolate between two HSLuv colors (vec3(h, s, l))
+vec3 interpolateHSLuv(vec3 hsluvA, vec3 hsluvB, float t) {
+    float h = interpolateHue(hsluvA.x, hsluvB.x, t);
+    float s = mix(hsluvA.y, hsluvB.y, t);
+    float l = mix(hsluvA.z, hsluvB.z, t);
+    return vec3(h, s, l);
+}
+
+
+// sRGB <-> XYZ
+// Level 1
+// Convert sRGB to XYZ
+vec3 sRGBToXYZ(vec3 rgb) {
+    vec3 linearRGB = pow(rgb, vec3(2.2)); // Linearize the RGB values (assuming input is sRGB)
+    return mat3(
+        0.4124564, 0.3575761, 0.1804375,
+        0.2126729, 0.7151522, 0.0721750,
+        0.0193339, 0.1191920, 0.9503041
+    ) * linearRGB; // Transformation matrix from RGB to XYZ
+}
+// Convert XYZ to sRGB
+vec3 XYZTosRGB(vec3 xyz) {
+    vec3 rgb = mat3(
+         3.2404542, -1.5371385, -0.4985314,
+        -0.9692660,  1.8760108,  0.0415560,
+         0.0556434, -0.2040259,  1.0572252
+    ) * xyz;
+
+    return pow(rgb, vec3(1.0 / 2.2)); // Apply gamma correction (sRGB)
+}
+
+
+// LRGB <-> XYZ
+// Level 1
+// Linear RGB to XYZ (sRGB primaries, D65 white)
+vec3 LinearRGBToXYZ(vec3 rgb) {
+    return mat3(
+        0.4124564, 0.3575761, 0.1804375,
+        0.2126729, 0.7151522, 0.0721750,
+        0.0193339, 0.1191920, 0.9503041
+    ) * rgb;
+}
+
+// XYZ to Linear RGB (sRGB primaries, D65 white)
+vec3 XYZToLinearRGB(vec3 xyz) {
+    return mat3(
+         3.2404542, -1.5371385, -0.4985314,
+        -0.9692660,  1.8760108,  0.0415560,
+         0.0556434, -0.2040259,  1.0572252
+    ) * xyz;
+}
+
+
+// XYZ <-> CIE LAB
+// Level 2
+// Helper function for XYZ <-> Lab
+float f_xyz(float t) {
+    return (t > 0.008856) ? pow(t, 1.0 / 3.0) : (7.787 * t + 16.0 / 116.0);
+}
+
+float f_inv(float t) {
+    float t3 = t * t * t;
+    return (t3 > 0.008856) ? t3 : (t - 16.0 / 116.0) / 7.787;
+}
+
+// Convert XYZ to Lab
+vec3 XYZToLab(vec3 xyz) {
+    vec3 xyz_n = xyz / D65;
+
+    float fx = f_xyz(xyz_n.x);
+    float fy = f_xyz(xyz_n.y);
+    float fz = f_xyz(xyz_n.z);
+
+    float L = 116.0 * fy - 16.0;
+    float a = 500.0 * (fx - fy);
+    float b = 200.0 * (fy - fz);
+
+    return vec3(L, a, b);
+}
+
+// Convert Lab to XYZ
+vec3 LabToXYZ(vec3 lab) {
+    float fy = (lab.x + 16.0) / 116.0;
+    float fx = lab.y / 500.0 + fy;
+    float fz = fy - lab.z / 200.0;
+
+    float xr = f_inv(fx);
+    float yr = f_inv(fy);
+    float zr = f_inv(fz);
+
+    return vec3(xr, yr, zr) * D65;
+}
+
+//  XYZ <-> CIEL_uv
+// Level 2
+vec3 XYZToCIELUV(vec3 xyz) {
+    // Reference white point (D65)
+    xyz /= D65; // Normalize XYZ by reference white
+
+    float denom = xyz.x + (15.0 * xyz.y) + (3.0 * xyz.z);
+    float uPrime = (4.0 * xyz.x) / denom;
+    float vPrime = (9.0 * xyz.y) / denom;
+
+    // Compute L*, u*, v*
+    float L = (xyz.y > 0.008856) ? (116.0 * pow(xyz.y, 1.0 / 3.0) - 16.0) : (903.3 * xyz.y);
+    //float u = (4.0 * xyz.x) / (xyz.x + 15.0 * xyz.y + 3.0 * xyz.z);
+    //float v = (9.0 * xyz.y) / (xyz.x + 15.0 * xyz.y + 3.0 * xyz.z);
+    float u = 13.0 * L * (uPrime - 0.2009);
+    float v = 13.0 * L * (vPrime - 0.4610);
+
+    return vec3(L, u, v);
+}
+
+vec3 CIELUVToXYZ(vec3 luv) {
+    float L = luv.x;
+    float u = luv.y;
+    float v = luv.z;
+
+    // Compute Y
+    float Y = (L > 8.0) ? pow((L + 16.0) / 116.0, 3.0) : L / 903.3;
+
+    // Compute u', v'
+    float u_prime = u - 0.197830011;
+    float v_prime = v - 0.468319994;
+
+    // Compute X and Z
+    float X = (Y == 0.0) ? 0.0 : (9.0 * Y * u_prime) / (4.0 * u_prime);
+    float Z = (Y == 0.0) ? 0.0 : (Y * (12.0 - 3.0 * u_prime - 20.0 * v_prime)) / (4.0 * v_prime);
+
+    return D65 * vec3(X, Y, Z); // Normalize XYZ by reference white
+}
+
+
+
+// CIE LAB <-> CIE HLC
+// Level 3
+// Convert CIE Lab to CIE HLC
+vec3 LabToHLC(vec3 lab) {
+    float L = lab.x;
+    float a = lab.y;
+    float b = lab.z;
+
+    // * radian
+    float C = sqrt(a * a + b * b); // Chroma
+    float H = atan(b, a) * 180.0 / 3.14159265359; 
+
+// additional code
+    H = mod(H, 2.0*pi);
+//
+
+    return vec3(L, C, H); // CIEHLC (L, C, H)
+}
+
+// Convert CIE HLC to CIE Lab
+vec3 HLCToLab(vec3 hlc) {
+    float L = hlc.x;
+    float C = hlc.y;
+    float H = hlc.z;
+
+    // * degree
+    float a = C * cos(H * 3.14159265359 / 180.0);
+    float b = C * sin(H * 3.14159265359 / 180.0);
+
+    return vec3(L, a, b);
+}
+
+
+// CIE <-> HSLUV
+// Level 3
+vec3 CIELUVToHSLuv(vec3 luv) {
+    float L = luv.x;
+    float u = luv.y;
+    float v = luv.z;
+
+    // Compute chroma
+    float U = u - 0.197830011;
+    float V = v - 0.468319994;
+    float C = sqrt(U * U + V * V);
+
+    // Compute hue
+    float H = atan(V, U);
+    if (H < 0.0) H += 2.0 * 3.14159265358979323846;
+    H = degrees(H);
+
+    // Compute saturation
+    float S = (L > 0.0 && L < 100.0) ? (C / (L < 50.0 ? L + 50.0 : 100.0 - L)) : 0.0;
+
+    return vec3(H, S, L);
+}
+
+vec3 HSLuvToCIELUV(vec3 hsluv) {
+    float H = hsluv.x;
+    float S = hsluv.y;
+    float L = hsluv.z;
+
+    // Compute chroma
+    float C = S * (L < 50.0 ? L + 50.0 : 100.0 - L);
+    float X = C * cos(radians(H));
+    float Y = C * sin(radians(H));
+
+    // Compute u*, v*
+    float u = 0.197830011 + X;
+    float v = 0.468319994 + Y;
+
+    // Compute L*
+    float L_star = L;
+
+    return vec3(L_star, u, v);
+}
+
+
+
+
+// Confirm this is the correct colorspace
+/////////////////////////
+// Approxmiate conversion
+vec3 ApproxRGBToHCL(vec3 rgb) {
+    // Assume rgb is linear
+    float L = dot(rgb, vec3(0.2126, 0.7152, 0.0722)); // Perceived luminance
+    float maxC = max(max(rgb.r, rgb.g), rgb.b);
+    float minC = min(min(rgb.r, rgb.g), rgb.b);
+    float C = maxC - minC;
+
+    float H = 0.0;
+    if (C > 0.0) {
+        if (maxC == rgb.r) {
+            H = mod((rgb.g - rgb.b) / C, 6.0);
+        } else if (maxC == rgb.g) {
+            H = (rgb.b - rgb.r) / C + 2.0;
+        } else {
+            H = (rgb.r - rgb.g) / C + 4.0;
+        }
+        H *= 60.0;
+        if (H < 0.0) H += 360.0;
+    }
+
+    return vec3(L, C, H); 
+}
+
+
+vec3 ApproxHCLtoRGB(vec3 hcl) {
+    float L = hcl.x;        // perceived luminance (0–1)
+    float C = hcl.y;        // chroma (0–1)
+    float H = hcl.z;        // hue in degrees (0–360)
+
+    // Convert hue to sector (like HSV)
+    float H_prime = H / 60.0;
+    float X = C * (1.0 - abs(mod(H_prime, 2.0) - 1.0));
+    vec3 rgbHue;
+
+    if (0.0 <= H_prime && H_prime < 1.0) {
+        rgbHue = vec3(C, X, 0.0);
+    } else if (1.0 <= H_prime && H_prime < 2.0) {
+        rgbHue = vec3(X, C, 0.0);
+    } else if (2.0 <= H_prime && H_prime < 3.0) {
+        rgbHue = vec3(0.0, C, X);
+    } else if (3.0 <= H_prime && H_prime < 4.0) {
+        rgbHue = vec3(0.0, X, C);
+    } else if (4.0 <= H_prime && H_prime < 5.0) {
+        rgbHue = vec3(X, 0.0, C);
+    } else if (5.0 <= H_prime && H_prime < 6.0) {
+        rgbHue = vec3(C, 0.0, X);
+    } else {
+        rgbHue = vec3(0.0); // fallback if hue is undefined
+    }
+
+    // Compute perceived luminance of hue-colored value
+    float perceivedL = dot(rgbHue, vec3(0.2126, 0.7152, 0.0722));
+
+    // Match the target luminance L
+    vec3 color = (perceivedL > 0.0) ? rgbHue * (L / perceivedL) : vec3(L);
+
+    // Fade to gray based on chroma, using smoothstep
+    float fade = smoothstep(0.0, 0.05, C); // fade if C < 0.05
+    color = mix(vec3(L), color, fade);     // blend toward neutral gray
+
+    return clamp(color, 0.0, 1.0);
+}
+
+
+
+
+
+////////////////
+// Test methods
+
+// First level of conversion
+vec3 LinearRGBToXYZToLinearRGB(vec3 rbg_i){
+    vec3 xyz = LinearRGBToXYZ(rbg_i);
+    vec3 rgb_o = XYZToLinearRGB(xyz);
+    return rgb_o;
+}
+
+// Second level of conversion
+vec3 XYZToLabToXYZ(vec3 xyz_i){
+    vec3 lab = XYZToLab(xyz_i);
+    vec3 xyz_o = LabToXYZ(lab);
+    return xyz_o;
+}
+
+// Third level of conversion
+vec3 LabToHLCToLab(vec3 lab_i){
+    vec3 hlc = LabToHLC(lab_i);
+    vec3 lab_o = HLCToLab(hlc);
+    return lab_o;
+}
+
+
+float normalize_trig_function(float input_value){
+    input_value += 1.0;
+    input_value /= 2.0;
+    return input_value;
+}
+
+
+vec3 color_shift_hlc(vec3 testRGB, float lightness, float chroma, float hue){
+    //(L, C, H)
+    // 0-1, 0-1, 0-360?
+    vec3 color_HLC;
+    vec3 display_output;
+    color_HLC = LabToHLC(XYZToLab(LinearRGBToXYZ(testRGB)));
+    color_HLC[0] += lightness;
+    color_HLC[1] += chroma;
+    color_HLC[2] += hue;
+    color_HLC[2] = mod(color_HLC[2], 360.0);
+    display_output = XYZToLinearRGB(LabToXYZ(HLCToLab(color_HLC)));
+    return display_output;
+}
+
+
+vec3 color_shift_hlc_approx(vec3 testRGB, float lightness, float chroma, float hue){
+    //(L, C, H)
+    // 0-1, 0-1, 0-360?
+    vec3 color_HLC;
+    vec3 display_output;
+    color_HLC = ApproxRGBToHCL(testRGB);
+    color_HLC[0] += lightness;
+    color_HLC[1] += chroma;
+    color_HLC[2] += hue; 
+    color_HLC[0] = clamp(color_HLC[0], 0.05, 0.95);
+    color_HLC[1] = clamp(color_HLC[1], 0.05, 0.95);
+    color_HLC[2] = mod(color_HLC[2], 360.0);
+    display_output = ApproxHCLtoRGB(color_HLC);
+    return display_output;
+}
+
+
+vec3 debug_convert_colors(vec3 testRGB){
+    vec3 display_output;
+    // Test all levels of conversion at once
+    //display_output = LinearRGBToHLCToLinearRGB(testRGB);
+
+    // Test each level of conversion one at a time
+    //display_output = LabToHLCToLab(testRGB);
+    //display_output = XYZToLabToXYZ(testRGB);
+    //display_output = LinearRGBToXYZToLinearRGB(testRGB);
+
+    // Test RGB <-> HLC first two levels of conversion
+    //display_output = XYZToLinearRGB(LabToXYZ(XYZToLab(LinearRGBToXYZ(testRGB))));
+
+    // Test RGB <-> HLC 2nd set of two levels of conversion
+    //display_output = LabToXYZ(HLCToLab(LabToHLC(XYZToLab(testRGB))));
+
+    // Test RGB <-> HLC all levels of conversion at once
+    //display_output = XYZToLinearRGB(LabToXYZ(HLCToLab(LabToHLC(XYZToLab(LinearRGBToXYZ(testRGB))))));
+
+    // Test direct RBG <-> HCL conversion using approxmiation
+    //display_output = ApproxHCLtoRGB(ApproxRGBToHCL(testRGB));
+
+    // Test RGB <-> HSLuv conversion 
+    // Test all levels
+    //display_output = XYZToLinearRGB(CIELUVToXYZ(HSLuvToCIELUV(CIELUVToHSLuv(XYZToCIELUV(LinearRGBToXYZ(testRGB))))));
+    // Test Level 3
+    display_output = HSLuvToCIELUV(CIELUVToHSLuv(testRGB));
+
+    // Restrict output colors to RGB values
+    display_output = clamp(display_output, 0.0, 1.0);
+    return display_output;
+}
+
+vec3 debug_compare_conversion(vec3 testRGB, vec3 display_output, vec2 uv){
+    vec3 display_error_output = vec3(0.0, 0.0, 0.0);
+    bool condition_error_found = false;
+
+    // alter channels that differ by more than the percentage listed below
+
+    float allowed_difference_percent = 5.0;
+    for(int i=0; i<3; i++){
+        if(abs(display_output[i] - testRGB[i]) > (float(allowed_difference_percent) / 100.0)) {
+            display_error_output[i] = 1.0;
+            condition_error_found = true;
+        }
+    }
+    // Display debug info:
+    // Left: Original input
+    // Middle:  Calculated output
+    // Right: Indication of channels where calculated output is different to the original input by more than the allowed margin of error
+    if(condition_error_found){
+        if(uv.x < (1.0/3.0)){
+            display_output = testRGB;
+        }
+        else if(uv.x < (2.0/3.0)){
+            display_output = display_output;
+        }
+        else{
+            display_output = display_error_output;
+        }
+    }
+    return display_output;
+}
+
+vec3 color_interpolate_hsluv(vec3 color_rgb_0_pct, vec3 color_rgb_100_pct, float bias){
+    bias = clamp(bias, 0.0, 1.0);
+    color_rgb_0_pct = clamp(color_rgb_0_pct, 0.0, 1.0);
+    color_rgb_100_pct = clamp(color_rgb_100_pct, 0.0, 1.0);
+    vec3 color_hsluv_0_pct = CIELUVToHSLuv(XYZToCIELUV(LinearRGBToXYZ(color_rgb_0_pct)));
+    vec3 color_hsluv_100_pct = CIELUVToHSLuv(XYZToCIELUV(LinearRGBToXYZ(color_rgb_100_pct)));
+    vec3 display_output = XYZToLinearRGB(CIELUVToXYZ(interpolateHSLuv(color_hsluv_0_pct, color_hsluv_100_pct, bias)));
+    return clamp(display_output, 0.0, 1.0);
+}
+
+// Main function
+void mainImage( out vec4 fragColor, in vec2 fragCoord )
+{
+    bool debug_conversion = false;
+    bool test_colorshift_hlc = false;
+    bool test_colorshift_hlc_approx = false;
+    bool test_color_interpolate_hsluv = true;
+
+    vec2 uv = fragCoord/iResolution.xy;
+    float size_of_space_degrees = 360.0;
+    float size_of_space_radians = 2.0 * pi;
+    float speed = 0.7;
+    float size_of_space = 2.0 * pi;
+    float time = mod(iTime*speed, size_of_space);
+    float circle_one_third = 120.0 * radian;
+    float circle_two_thirds = 240.0 * radian;
+    float brightness = sin(mod(iTime*0.13, size_of_space))/2.0;
+
+    vec3 display_output;
+    vec3 testRGB;
+
+
+
+    // Use white as the test color
+    //vec3 testRGB = white; 
+
+    // User red as the test color
+    //vec3 testRGB = red;
+
+    // Vary test color
+    float sin_offset_0 = normalize_trig_function(sin(time));
+    float sin_offset_1 = normalize_trig_function(sin(time+circle_one_third));
+    float sin_offset_2 = normalize_trig_function(sin(time+circle_two_thirds));
+    testRGB = vec3(sin_offset_2, sin_offset_1, sin_offset_0) + brightness;
+    testRGB = clamp(testRGB, 0.0, 1.0);
+    
+
+    // Use importd texture as background
+    vec4 color = texture(iChannel0, uv);
+    //testRGB = color.xyz;
+
+
+    if(debug_conversion){
+        display_output = debug_compare_conversion(testRGB, debug_convert_colors(testRGB), uv);
+    }
+
+    // Not really working. Limit on generated values?
+    if(test_colorshift_hlc){
+        //float lightness = brightness;
+        float lightness = 1.0;
+        float chroma = 1.0;
+        
+        //float hue_angle = time * degree;
+        //float hue_angle = mod(iTime, 360.0);
+        //float hue_angle = pow(2.0, 6.0) * sin(iTime);
+        float hue_angle = -(iTime) * degree;
+        //(L, C, H)
+        display_output = color_shift_hlc(testRGB, lightness, chroma, hue_angle);
+    }
+
+    // More or less works as intended
+    // Green & blues are incorrect sometimes
+    if(test_colorshift_hlc_approx){
+        //float lightness = brightness;
+        //float lightness = 0.0;
+        //float chroma = 0.0;
+        float lightness = sin(iTime * 0.13)*0.9;
+        float chroma = sin(iTime * 0.7)*0.9;
+
+        //float hue_angle = time * degree;
+        //float hue_angle = mod(iTime, 360.0);
+        //float hue_angle = pow(2.0, 6.0) * sin(iTime);
+        //float hue_angle = -pow(2.0, 6.0) * (iTime);
+        float hue_angle = -(iTime)*degree;
+        //(L, C, H)
+        display_output = color_shift_hlc_approx(testRGB, lightness, chroma, hue_angle);
+    }
+
+    // Really not working
+    if(test_color_interpolate_hsluv){
+        display_output = color_interpolate_hsluv(blue, white, normalize_trig_function(sin(iTime)));
+    }
+ 
+
+
+    
+
+    fragColor = vec4(display_output, 1.0);
+}
+
+// Begin GLSL viewer section 2 
+// Comment this section out to use with shadertoy
+void main() {
+    vec4 color;
+    iTime = u_time;
+    iResolution = u_resolution;
+    mainImage(color, gl_FragCoord.xy);
+    FragColor = color;
+}
+// End GLSL viewer section 2
+
+
+/*
+Reference
+https://levien.com/hlc.html
+
+LAB Values:
+L should be between 0, 100
+a, b technically unbound but often clamped to -128, +127
+https://en.wikipedia.org/wiki/CIELAB_color_space#Range_of_coordinates
+*/

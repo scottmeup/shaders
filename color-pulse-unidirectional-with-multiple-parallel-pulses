@@ -54,10 +54,16 @@ const vec3 zeros3d = vec3(0.0, 0.0, 0.0);
 const float one_third = (1.0 / 3.0);
 const float two_thirds = (2.0 / 3.0);
 const vec3 red = vec3(1.0, 0.0, 0.0);
+const vec3 orange = vec3(1.0, 0.75, 0.0);
+const vec3 yellow = vec3(1.0, 1.0, 0.0 );
 const vec3 green = vec3(0.0, 1.0, 0.0);
+const vec3 cyan = vec3(0.0, 1.0, 1.0);
 const vec3 blue = vec3(0.0, 0.0, 1.0);
+const vec3 violet = vec3(0.5, 0.0, 1.0);
+const vec3 magenta = vec3(1.0, 0.0, 1.0);
 const vec3 white = ones3d;
 const vec3 black = zeros3d;
+const float dark = 0.5;
 const float epsilon_0_to_100 = 1e-5;
 const float pi = PI;
 const float two_pi = TWO_PI;
@@ -117,12 +123,15 @@ struct Pulse_settings
     float fade_in_speed_linear;    // 0.0 for no linear fade-in. Generate a fade-in on the LED before the pulse. Higher number = faster = shorter.
     float color_brightness_cutoff;    // switch to non-pulse, "pause" section of cycle coloring below this brightness.
     float color_pulse_minimum_brightness_percent;    // Minimum brightness of pulse as a percent. Will not decay below this level.
+    float head_offset_in_leds;    // Amount of space to shift the head. +ive = backwards.
+    float head_buffer_leds;    // Amount of space to separate decay & fade in from the head section, measured in LEDs. Default is 0.0
+    float head_buffer_alignment_in_leds;    // Amount of space to shift the buffer between the decay & fade in sections from the head, measured in LEDs. +ive = shift to the rear. Default is 0.0
     bool color_brightness_cutoff_includes_background_brightness;    // Consider background coloring or not when determining the brightness of a pixel for cutoff to pause coloring.
     bool color_combine_background_with_pause_color;    // Overlay the background color on top of the "pause" / negative space color.
     bool color_combine_pulse_head_with_fade_in;    // Smooth transition between fade-in and pulse head
     bool display_discrete_led_output;   // Simulate LED display based on size_of_display_in_leds.
     bool fade_and_decay_first_and_last_led_only;    // Only apply fade-in to the first LED before the pulse appears, and to the last LED after the pulse leaves. Requires display_discrete_led_output and either fade_in or decay.
-
+    bool input_is_rgb;   // If true, treat input colors as RGB. If false, treat colors as HSLuv
 };
 
 
@@ -132,23 +141,23 @@ struct Pulse_settings
 //
 void Initialize_pulse_settings_array(inout Pulse_settings pulse[size_of_display_in_columns]){
     // Use order of variables listed above in "struct Pulse_settings"
-    //                                                                                                              LEDs in |Pulse |Decay|Decay|Fade |Fade | Bright | Min    | Cufoff| BG + | Head+| LED   | 1st+ 
-    //                              Pulse-color  |  Pause-color         | Fade-in color       | Background-color  | Display | Head | Exp | Lin | Exp | Lin | Cutoff | Bright | BG    | Pause| Fade | Output| last
+    //                                                                                                              LEDs in |Pulse |Decay|Decay|Fade |Fade | Bright | Min    | head   | head   | buffer |Cufoff| BG + | Head+| LED   | 1st+ 
+    //                              Pulse-color  |  Pause-color         | Fade-in color       | Background-color  | Display | Head | Exp | Lin | Exp | Lin | Cutoff | Bright | offset | buffer | offset |BG    | Pause| Fade | Output| last
+                                                                                                                                                                                                                                    
 
-
-    pulse[0]  = Pulse_settings(vec3(1.0, 0.0, 0.0 ), vec3(0.0, 0.0, 0.05), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 5.0,      1.0,   3.0,  0.0,  0.0,   0.0,  0.0,   0.0,     false,  true, false,  true,   false);     // Device 1
-    pulse[1]  = Pulse_settings(vec3(1.0, 0.75, 0.0), vec3(0.0, 0.0, 0.05), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 3.0,      1.0,   3.0,  0.0,  0.0,   0.0,  0.0,   0.0,     false,  true, false,  true,   false);     // Device 2
-    pulse[2]  = Pulse_settings(vec3(1.0, 1.0, 0.0 ), vec3(0.0, 0.0, 0.1 ), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 3.0,      2.0,   3.0,  0.0,  0.0,   0.0,  0.0,   0.0,     false,  true, false,  true,   false);     // Device 3
-    pulse[3]  = Pulse_settings(vec3(0.0, 1.0, 0.0 ), vec3(0.0, 0.0, 0.0 ), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 14.0,     1.0,   3.0,  0.0,  14.0,  0.0,  0.0,   0.0,     false,  true, false,  true,   false);     // Device 4
-    pulse[4]  = Pulse_settings(vec3(0.0, 0.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(0.0, 1.0, 0.0), vec3(0.0, 1.0, 0.0), 8.0,      1.0,   3.0,  0.0,  0.0,   0.0,  0.0,   0.0,     false,  true, false,  true,   false);     // Device 5     //#TO DO# Look at this case - I think the color mixing could be better between head and decay pulse - transition is pretty stark
-    pulse[5]  = Pulse_settings(vec3(0.0, 1.0, 1.0 ), vec3(0.0, 0.0, 0.5 ), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), 8.0,      1.0,   3.0,  0.0,  0.0,   0.0,  0.1,     0.0,     false,  true, false,  true,   false);     // Device 6
-    pulse[6]  = Pulse_settings(vec3(0.0, 0.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(0.5, 0.0, 1.0), vec3(0.0, 0.0, 0.0), 8.0,      1.0,   3.0,  0.0,  16.0,   0.0,  0.0,   0.0,     false,  true, true,   true,   false);     // Device 7
-//    pulse[7]  = Pulse_settings(vec3(1.0, 0.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(1.0, 0.0, 1.0), vec3(0.0, 0.0, 0.0), 3.0,      1.0,   3.0,  0.0,  1.0,   3.0,  0.025,   0.0,     false,  true, false,  true,   true );     // Device 8
-//    pulse[8]  = Pulse_settings(vec3(0.5, 0.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(0.5, 0.0, 1.0), vec3(0.0, 0.0, 0.0), 4.0,      0.0,   0.0,  1.0,  0.0,   1.0,  0.025,   0.0,     false,  true, false,  true,   false );    // Device 9
-    pulse[7]  = Pulse_settings(vec3(1.0, 0.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(1.0, 0.0, 1.0), vec3(0.0, 0.0, 0.0), 2.0,      1.0,   3.0,  0.0,  1.0,   3.0,  0.0,   0.0,     false,  true, false,  true,   true );     // Device 8
-    pulse[8]  = Pulse_settings(vec3(1.0, 0.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(1.0, 0.0, 1.0), vec3(0.0, 0.0, 0.0), 2.0,      1.0,   3.0,  0.0,  1.0,   3.0,  0.0,   0.0,     false,  true, false,  false,  false );     // Device 9
-    pulse[9]  = Pulse_settings(vec3(1.0, 1.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(1.0, 1.0, 1.0), vec3(0.0, 0.0, 0.0), 4.0,      0.0,   9.0,  0.0,  9.0,   0.0,  0.0,   0.0,     false,  true, false,  false,  false );    // Device 10
-    pulse[10] = Pulse_settings(vec3(1.0, 1.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(1.0, 1.0, 1.0), vec3(0.0, 0.0, 0.0), 4.0,      0.0,   0.0,  1.5,  0.0,   0.0,  0.0,   0.3,     false,  true, false,  false,  false );    // Device 11
+    pulse[0]  = Pulse_settings(vec3(1.0, 0.0, 0.0 ), vec3(0.0, 0.0, 0.05), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 5.0,      1.0,   3.0,  0.0,  0.0,   0.0,  0.0,   0.0,     0.0,     0.0,     0.0,    false,  true, false,  true,   false,    true );     // Device 1
+    pulse[1]  = Pulse_settings(vec3(1.0, 0.75, 0.0), vec3(0.0, 0.0, 0.05), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 3.0,      1.0,   3.0,  0.0,  0.0,   0.0,  0.0,   0.0,     0.0,     0.0,     0.0,    false,  true, false,  true,   false,    true );     // Device 2
+    pulse[2]  = Pulse_settings(vec3(1.0, 1.0, 0.0 ), vec3(0.0, 0.0, 0.1 ), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 3.0,      2.0,   3.0,  0.0,  0.0,   0.0,  0.0,   0.0,     0.0,     0.0,     0.0,    false,  true, false,  true,   false,    true );     // Device 3
+    pulse[3]  = Pulse_settings(vec3(0.0, 1.0, 0.0 ), vec3(0.0, 0.0, 0.0 ), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 0.0), 14.0,     1.0,   3.0,  0.0,  14.0,  0.0,  0.0,   0.0,     0.0,     0.0,     0.0,    false,  true, false,  true,   false,    true );     // Device 4
+    pulse[4]  = Pulse_settings(vec3(0.0, 0.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(0.0, 1.0, 0.0), vec3(0.0, 1.0, 0.0), 8.0,      1.0,   3.0,  0.0,  0.0,   0.0,  0.0,   0.0,     0.0,     0.0,     0.0,    false,  true, false,  true,   false,    true );     // Device 5     //#TO DO# Look at this case - Is head coloring / lighting correct?
+    pulse[5]  = Pulse_settings(vec3(0.0, 1.0, 1.0 ), vec3(0.0, 0.0, 0.5 ), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), 8.0,      1.0,   3.0,  0.0,  0.0,   0.0,  0.05,  0.0,     0.0,     0.0,     0.0,    false,  true, false,  true,   false,    true );     // Device 6     //#TO DO# Look at this case - head seems to be delayed by one step compared to other columns
+    pulse[6]  = Pulse_settings(vec3(0.0, 0.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(0.5, 0.0, 1.0), vec3(0.0, 0.0, 0.0), 8.0,      1.0,   3.0,  0.0,  16.0,  0.0,  0.0,   0.0,     0.0,     0.0,     0.0,    false,  true, true,   true,   false,    true );     // Device 7
+//    pulse[7]  = Pulse_settings(vec3(1.0, 0.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(1.0, 0.0, 1.0), vec3(0.0, 0.0, 0.0), 3.0,      1.0,   3.0,  0.0,  1.0,   3.0,  0.025,     0.0,   0.0, 0.0,     0.0,    false,  true, false,  true,   true,     true );     // Device 8
+//    pulse[8]  = Pulse_settings(vec3(0.5, 0.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(0.5, 0.0, 1.0), vec3(0.0, 0.0, 0.0), 4.0,      0.0,   0.0,  1.0,  0.0,   1.0,  0.025,     0.0,   0.0, 0.0,     0.0,    false,  true, false,  true,   false,    true );     // Device 9
+    pulse[7]  = Pulse_settings(vec3(1.0, 0.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(1.0, 0.0, 1.0), vec3(0.0, 0.0, 0.0), 4.0,      1.0,   3.0,  0.0,  1.0,   3.0,  0.0,   0.0,     0.0,     0.0,     0.0,    false,  true, false,  true,   true,     true );     // Device 8
+    pulse[8]  = Pulse_settings(vec3(1.0, 0.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(1.0, 0.0, 1.0), vec3(0.0, 0.0, 0.0), 4.0,      1.0,   3.0,  0.0,  1.0,   3.0,  0.0,   0.0,     0.0,     0.0,     0.0,    false,  true, false,  false,  false,    true );     // Device 9
+    pulse[9]  = Pulse_settings(vec3(1.0, 1.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(1.0, 1.0, 1.0), vec3(0.0, 0.0, 0.0), 4.0,      0.0,   9.0,  0.0,  9.0,   0.0,  0.0,   0.0,     0.0,     0.0,     0.0,    false,  true, false,  false,  false,    true );     // Device 10
+    pulse[10] = Pulse_settings(vec3(1.0, 1.0, 1.0 ), vec3(0.0, 0.0, 0.0 ), vec3(1.0, 1.0, 1.0), vec3(0.0, 0.0, 0.0), 4.0,      0.0,   0.0,  1.5,  0.0,   0.0,  0.0,   0.3,     0.0,     0.0,     0.0,    false,  true, false,  false,  false,    true );     // Device 11
 
 /*
     // Test cases for fade-in
@@ -679,16 +688,16 @@ float distance_with_wrap(float position_initial, float position_final, float siz
 }
 
 
-vec2 get_decay_and_fade_offsets(float head_buffer_leds, float head_buffer_alignment, float size_of_led_as_percent_of_display, float size_pulse_head_in_leds){
+vec2 get_decay_and_fade_offsets(float head_buffer_leds, float head_buffer_alignment_in_leds, float size_of_led_as_percent_of_display, float size_pulse_head_in_leds){
     // Alighment & buffer space between full-intensity section and fade-in / decay start for calculations.
     // Takes number of LEDs as inputs and returns percent of display
     //
     // head_buffer_leds: amount of space to extend / retract the fade & decay areas
-    // head_buffer_alignment: shift the fade & decay areas forward or backward by this amount of LEDs
+    // head_buffer_alignment_in_leds: shift the fade & decay areas forward or backward by this amount of LEDs
     // size_of_led_as_percent_of_display: number of LED elements in the display
     // size_pulse_head_in_leds: size of full intensity area as a multiple of LEDs
     //
-    // head_buffer_leds = 0.0, head_buffer_alignment = 0.5 : full illumination to exactly 1 LED element at a time and aligns LEDs to index of pulse
+    // head_buffer_leds = 0.0, head_buffer_alignment_in_leds = 0.5 : full illumination to exactly 1 LED element at a time and aligns LEDs to index of pulse
     // 
     // Probably best managed as part of Pulse_settings or with additional logic: doesn't always play nice with continuous display mode
     vec2 offset;
@@ -696,8 +705,8 @@ vec2 get_decay_and_fade_offsets(float head_buffer_leds, float head_buffer_alignm
     // Adjust default behavior to align start of calculation at the pulse index, trailing the pulse.
     // offset.x = trailing edge, offset.y = leading edge
     //
-    offset.x = ( (head_buffer_leds) / 2.0 ) + head_buffer_alignment + size_pulse_head_in_leds;
-    offset.y = ( (head_buffer_leds) / 2.0 ) - head_buffer_alignment;
+    offset.x = ( (head_buffer_leds) / 2.0 ) + head_buffer_alignment_in_leds + size_pulse_head_in_leds;
+    offset.y = ( (head_buffer_leds) / 2.0 ) - head_buffer_alignment_in_leds;
     offset = offset * size_of_led_as_percent_of_display;
     return offset;
 }
@@ -942,8 +951,6 @@ vec3 generate_fade_in(float current_location_on_y_axis_of_display_as_percent_of_
 
 float generate_pulse_decay(float distance_of_current_location_behind_pulse_as_percent_of_display, bool behind_pulse, float pulse_location_as_percent_of_display, float size_of_cycle_as_percent_of_display, float offset_from_pulse_index, Pulse_settings pulse){
     // Generate decay pulse
-    // #TO DO# / #BUG#:
-    // - Differentiate between forward and backward decay direction for offset + decay rates
 
     // Positive offsets move the beginning of calculations behind the pulse
     // Negative offsets move the beginning of calculations in front of the pulse 
@@ -951,8 +958,8 @@ float generate_pulse_decay(float distance_of_current_location_behind_pulse_as_pe
     float distance_plus_offset_behind_pulse_as_percent_of_display = (distance_of_current_location_behind_pulse_as_percent_of_display - offset_from_pulse_index);
     //distance_plus_offset_behind_pulse_as_percent_of_display = mod(distance_plus_offset_behind_pulse_as_percent_of_display, size_of_cycle_as_percent_of_display);
 
-    float decay_speed_exponential; // = pulse.decay_speed_exponential;
-    float decay_speed_linear; // = pulse.decay_speed_linear;
+    float decay_speed_exponential; 
+    float decay_speed_linear;
     
     
     if(behind_pulse){
@@ -964,10 +971,6 @@ float generate_pulse_decay(float distance_of_current_location_behind_pulse_as_pe
         decay_speed_linear = pulse.fade_in_speed_linear;
     }
     
-    // Some debug code
-    //decay_speed_exponential = pulse.fade_in_speed_exponential;
-    //decay_speed_linear = pulse.fade_in_speed_linear;
-
 
     float size_of_display_in_leds = pulse.size_of_display_in_leds;
     float size_pulse_head_in_leds = pulse.size_pulse_head_in_leds;
@@ -976,7 +979,7 @@ float generate_pulse_decay(float distance_of_current_location_behind_pulse_as_pe
     bool flag_generate_decay_exponential = (decay_speed_exponential > 0.0);
     
     float size_of_pulse_head_as_percent_of_display = (size_pulse_head_in_leds / size_of_display_in_leds);
-    float decay_total = 0.0;
+    float decay_total = 0.0;    //very important to set this
 
     // Case: head area. separate head rendering function should handle this space.
     // Needs to be modified for fade-in, either here or in the calling section
@@ -989,70 +992,9 @@ float generate_pulse_decay(float distance_of_current_location_behind_pulse_as_pe
     float decay_linear = 1.0 - (distance_plus_offset_behind_pulse_as_percent_of_display * decay_speed_linear);
     float decay_exponential = exp(-distance_plus_offset_behind_pulse_as_percent_of_display * decay_speed_exponential);
 
-
-    //float distance_of_current_location_behind_pulse_as_percent_of_display = get_distance_of_current_location_from_pulse_as_percent_of_display(pulse_location_as_percent_of_display, current_location_on_y_axis_of_display_as_percent_of_display, size_of_cycle_as_percent_of_display, behind_pulse);
-    /*
-    if ((distance_of_current_location_behind_pulse_as_percent_of_display) < size_of_pulse_head_as_percent_of_display){
-    
-        // Pulse Head
-        if(pulse.color_combine_pulse_head_with_fade_in && flag_generate_fade_in){
-            // Draw head blended with fade-in
-            distance_of_pulse_from_front_of_current_led_as_percent_of_led = ((distance_of_current_location_behind_pulse_as_percent) / size_of_led_as_percent_of_display);
-            distance_of_pulse_from_back_of_current_led_as_percent_of_led = ( 1.0 - distance_of_pulse_from_front_of_current_led_as_percent_of_led );
-            vec3 color_head_scaled_to_pulse_position_in_led = ( pulse.rgb_pulse * (distance_of_pulse_from_front_of_current_led_as_percent_of_led));
-            vec3 color_fade_in_scaled_to_pulse_position_in_led = ( pulse.rgb_fade_in * (distance_of_pulse_from_back_of_current_led_as_percent_of_led));
-            // x2.0 is a bit of a hack to reach colors in the middle. Look into trig functions, color gradients... 
-            color_head_scaled_to_pulse_position_in_led = min(2.0 * color_head_scaled_to_pulse_position_in_led, pulse.rgb_pulse);
-            color_fade_in_scaled_to_pulse_position_in_led = min(2.0 * color_fade_in_scaled_to_pulse_position_in_led, pulse.rgb_fade_in);
-            display_output_vector_column = (color_head_scaled_to_pulse_position_in_led + color_fade_in_scaled_to_pulse_position_in_led);
-        }
-        else if(fade_and_decay_first_and_last_led_only && (position_current_led_in_display<=0.0)){
-            // Really want to be generating fade-in here
-
-            //return vec3(0.6, 0.6, 0.6);
-            display_output_vector_column = pulse.rgb_pulse;
-        }
-        else{
-            // Draw head without blending fade-in
-            display_output_vector_column = pulse.rgb_pulse;
-        }
-    }
-    */
-    //else if(( flag_generate_decay_linear || flag_generate_decay_exponential ) != false ){
-    // #bug# probably here - need to separate into 3 separate calculation cases and a no-calculation case
+    // Linear + exponential 
     if( flag_generate_decay_linear && flag_generate_decay_exponential ){
-    /*
-        // Pulse Tail
-        // Squish the decay rate into the non-head area of the pulse
-        float distance_of_current_location_behind_pulse_as_percent_of_display =- size_of_pulse_head_as_percent_of_display;
-        float distance_behind_pulse_head_as_percent_of_display_normalised = ( distance_behind_pulse_head_as_percent_of_display * ratio_of_display_size_to_pulse_tail_size );
-        float decay_linear = 1.0 - (distance_behind_pulse_head_as_percent_of_display_normalised * pulse.decay_speed_linear);        
-        float decay_exponential = exp(-distance_behind_pulse_head_as_percent_of_display_normalised * pulse.decay_speed_exponential);
-        float decay_total = ( decay_linear * decay_exponential );
-        /*
-        if ( ( position_current_led_in_display != (pulse.size_of_display_in_leds-1.0) ) && fade_and_decay_first_and_last_led_only){
-            // fade_and_decay_first_and_last_led_only is set but this isn't the last LED in the display.
-            // Do nothing.
-        }
-        else{
-            // Otherwise, generate pulse decay tail
-            display_output_vector_column = ( pulse.rgb_pulse * decay_total );
-        }
-        */
         decay_total = ( decay_linear * decay_exponential );
-        
-        /*
-        //if(distance_of_current_location_behind_pulse_as_percent_of_display < mod(-offset_from_pulse_index, size_of_cycle_as_percent_of_display)){
-        if(distance_of_current_location_behind_pulse_as_percent_of_display < -offset_from_pulse_index){
-            decay_total = 0.0;
-        }
-        else{
-            float decay_linear = 1.0 - (distance_plus_offset_behind_pulse_as_percent_of_display * pulse.decay_speed_linear);
-            float decay_exponential = exp(-distance_plus_offset_behind_pulse_as_percent_of_display * pulse.decay_speed_exponential);
-            decay_total = ( decay_linear * decay_exponential );
-        }
-        */
-
     }
     // linear only
     else if(flag_generate_decay_linear && !(flag_generate_decay_exponential)){
@@ -1267,8 +1209,13 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     bool color_combine_pulse_head_with_fade_in = pulse.color_combine_pulse_head_with_fade_in;
     bool color_brightness_cutoff_includes_background_brightness = pulse.color_brightness_cutoff_includes_background_brightness;
     bool display_discrete_led_output = pulse.display_discrete_led_output;
+    bool input_is_rgb = pulse.input_is_rgb;
+    bool fade_and_decay_first_and_last_led_only = pulse.fade_and_decay_first_and_last_led_only;
     float color_brightness_cutoff = pulse.color_brightness_cutoff;
     float color_pulse_minimum_brightness_percent = pulse.color_pulse_minimum_brightness_percent;
+    float head_buffer_alignment_in_leds = pulse.head_buffer_alignment_in_leds;
+    float head_buffer_leds = pulse.head_buffer_leds;
+    float head_offset_in_leds = pulse.head_offset_in_leds;
     float size_of_display_in_leds = pulse.size_of_display_in_leds;
     float size_pulse_head_in_leds = pulse.size_pulse_head_in_leds;
     vec3 rgb_background = pulse.rgb_background;
@@ -1276,11 +1223,27 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     vec3 rgb_pause = pulse.rgb_pause;
     vec3 rgb_pulse = pulse.rgb_pulse;
 
-    // Generate HSLuv equivalents of specified colors
-    vec3 hsl_background = clamp_hsluv(rgbToHsluv(rgb_background));
-    vec3 hsl_pause = clamp_hsluv(rgbToHsluv(rgb_pause));
-    vec3 hsl_pulse = clamp_hsluv(rgbToHsluv(rgb_pulse));
-    vec3 hsl_fade_in = clamp_hsluv(rgbToHsluv(rgb_fade_in));
+
+    // Generate HSLuv color values
+    vec3 hsl_background;
+    vec3 hsl_pause;
+    vec3 hsl_pulse;
+    vec3 hsl_fade_in;
+
+    if(input_is_rgb){
+        // Convert RGB to HSLuv
+        hsl_background = clamp_hsluv(rgbToHsluv(rgb_background));
+        hsl_pause = clamp_hsluv(rgbToHsluv(rgb_pause));
+        hsl_pulse = clamp_hsluv(rgbToHsluv(rgb_pulse));
+        hsl_fade_in = clamp_hsluv(rgbToHsluv(rgb_fade_in));
+    }
+    else{
+        hsl_background = clamp_hsluv(rgb_background);
+        hsl_pause = clamp_hsluv(rgb_pause);
+        hsl_pulse = clamp_hsluv(rgb_pulse);
+        hsl_fade_in = clamp_hsluv(rgb_fade_in);
+    }
+
 
     // Adjust HSLuv colors
     vec3[4] hsl_array;
@@ -1312,37 +1275,27 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     distance_of_current_location_in_front_of_pulse_as_percent_of_display = invert_value(distance_of_current_location_behind_pulse_as_percent_of_display, size_of_cycle_as_percent_of_display);
 
    
-    
+    /*
     // Shift head as a multiple of a full LED. -ive is behind pulse, +ive is in front of pulse.
-    // +0.5 is the original behaviour: align start of head behind pulse index. 
-    // 0.0 will center head on pulse index.
     float head_offset_in_leds = 0.0;    
-    //float head_offset_as_percent_of_display;
-    
     
     // Generate offsets of decay from head location
-    // Note: testing was done with decay + fade_in only, i beleive head generation was off
-    //
-    // 0.0 results in full illumination of exactly 1 LED at a time with fade_in + decay pulse
     float head_buffer_leds = 0.0; 
-    // +0.5 is original behaviour: align as though head begins at pulse index and trails pulse
-    float head_buffer_alignment = 0.0;  
-
+    float head_buffer_alignment_in_leds = 0.0;  
+    */
     
-    if(!display_discrete_led_output){
+    //if(!display_discrete_led_output){
         // Center head on pulse index in contiuous output mode
         //
         //head_offset_as_percent_of_display = get_led_offset_as_percent_of_display(head_offset_as_percent_of_display, size_of_led_as_percent_of_display);
         
-        /*
-        head_offset_in_leds -= 0.5;
-        head_buffer_alignment -= 0.5;
-        */
-    }
+        
+    head_buffer_leds = pulse.head_buffer_leds;
+    head_buffer_alignment_in_leds = pulse.head_buffer_alignment_in_leds;
+        
+    //}
     
-    // Same bug as originally found in generate_head / define_led, at least in debug:
-    // Wonky wrap around
-    vec2 decay_and_fade_offset = get_decay_and_fade_offsets(head_buffer_leds, head_buffer_alignment, size_of_led_as_percent_of_display, size_pulse_head_in_leds);
+    vec2 decay_and_fade_offset = get_decay_and_fade_offsets(head_buffer_leds, head_buffer_alignment_in_leds, size_of_led_as_percent_of_display, size_pulse_head_in_leds);
     
 
 
@@ -1680,16 +1633,6 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 
     if(debug_master_hsluv){
         float color_pulse_minimum_brightness_value = color_pulse_minimum_brightness_percent * 100.0;
-        float this_location_brightness_decay=(decay_factor*hsl_pulse[2]);
-        float this_location_brightness_fade_in=(fade_in_factor*hsl_fade_in[2]);
-        float this_location_brightness_background;
-        float ratio_brightness_pulse;
-        float ratio_brightness_fade_in;
-        float ratio_brightness_background;
-        float ratio_brightness_fade_in_to_pulse;
-        float ratio_brightness_background_to_fade_in_and_pulse;
-        float ratio_brightness_background_to_head;
-        float value_brightness_total;
         float display_output_hsl_hue;
         float display_output_hsl_saturation;
         float display_output_hsl_lightness; 
@@ -1699,51 +1642,61 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         vec3 display_output_hsl_pulse;
         vec3 display_output_hsl_fade_in;
 
+        // Calculate ratios for blending different colors based on brightness of the color
+        float this_location_brightness_decay = (decay_factor*hsl_pulse[2]);
+        float this_location_brightness_fade_in = (fade_in_factor*hsl_fade_in[2]);
+        float this_location_brightness_background = hsl_background[2];
+        float this_location_brightness_total;   // calculated with or without background, later on
+        float value_brightness_sum = (this_location_brightness_decay + this_location_brightness_fade_in + this_location_brightness_background);
+        float ratio_brightness_head_to_total = ratio_normalized(hsl_pulse[2], value_brightness_sum);
+        float ratio_brightness_decay_to_total = ratio_normalized(this_location_brightness_fade_in, value_brightness_sum);
+        float ratio_brightness_fade_in_to_total = ratio_normalized(this_location_brightness_fade_in, value_brightness_sum);
+        float ratio_brightness_background_to_total = ratio_normalized(this_location_brightness_background, value_brightness_sum);
+        float ratio_brightness_background_to_fade_in_and_pulse = ratio_normalized(this_location_brightness_background, (this_location_brightness_decay+this_location_brightness_fade_in));
+        float ratio_brightness_background_to_head;    // calculated later on, in head display section
+        float ratio_brightness_fade_in_to_pulse = ratio_normalized(this_location_brightness_fade_in, this_location_brightness_decay);
+
+
+
 
         // Generate fade-in & decay pulse values for the whole column:
         // Hue & saturation as constant from color preset, lightness from preset lightness * decay or fade-in calculation over distance
         display_output_hsl_fade_in = clamp_hsluv(vec3(hsl_fade_in.xy, this_location_brightness_fade_in));
         display_output_hsl_pulse = clamp_hsluv(vec3(hsl_pulse.xy, max(this_location_brightness_decay, color_pulse_minimum_brightness_value)));
 
-        float current_location_brightness_pulse = display_output_hsl_pulse[2];
-        float current_location_brightness_fade_in = display_output_hsl_fade_in[2];
-        float current_location_brightness_background = hsl_background[2];
 
-        ratio_brightness_fade_in_to_pulse = ratio_normalized(this_location_brightness_fade_in, this_location_brightness_decay);
 
         if(debug_show_intended_output){
+
+
+            // #TO DO# consider redoing this part with interpolate_hsluv instead of interpolate_hue.
+            // Calculating ratios is going to be fun
 
 
             // Calculate brightness before, or after applying background
             // Needs to be before main section to allow cutoff & alternate color
             if(color_brightness_cutoff_includes_background_brightness){
-                // Lightness = additional
-                //value_brightness_total = clamp((display_output_hsl_fade_in[2] + display_output_hsl_pulse[2] + hsl_background[2]), 0.0, 100.0);
-
                 // Lightness = max
-                value_brightness_total = max(max(display_output_hsl_fade_in[2], display_output_hsl_pulse[2]), hsl_background[2]);
+                this_location_brightness_total = max(max(display_output_hsl_fade_in[2], display_output_hsl_pulse[2]), hsl_background[2]);
             }
             else{
-                // Lightness = additional
-                //value_brightness_total = clamp((display_output_hsl_fade_in[2] + display_output_hsl_pulse[2]), 0.0, 100.0);
-
-                // Lightness = max
-                value_brightness_total = max(display_output_hsl_fade_in[2], display_output_hsl_pulse[2]);
+                 // Lightness = max
+                this_location_brightness_total = max(display_output_hsl_fade_in[2], display_output_hsl_pulse[2]);
             }
 
-
+/*
             // Calculate ratios of different element's lightness / brightness
-            ratio_brightness_fade_in = display_output_hsl_fade_in[2] / value_brightness_total;
-            ratio_brightness_pulse = display_output_hsl_pulse[2] / value_brightness_total;
-            ratio_brightness_background = hsl_background[2] / value_brightness_total;  // Careful, has the potential to return a value > 1.0  if total brightness is calculated before applying background
+            ratio_brightness_fade_in_to_total = display_output_hsl_fade_in[2] / this_location_brightness_total;
+            ratio_brightness_decay_to_total = display_output_hsl_pulse[2] / this_location_brightness_total;
+            ratio_brightness_background_to_total = hsl_background[2] / this_location_brightness_total;  // Careful, has the potential to return a value > 1.0  if total brightness is calculated before applying background
             ratio_brightness_fade_in_to_pulse = ratio_normalized(this_location_brightness_fade_in, this_location_brightness_decay);
-            ratio_brightness_background_to_fade_in_and_pulse = ratio_normalized(current_location_brightness_background, (current_location_brightness_pulse+current_location_brightness_fade_in));
-
+            ratio_brightness_background_to_fade_in_and_pulse = ratio_normalized(this_location_brightness_background, (this_location_brightness_decay+this_location_brightness_fade_in));
+*/
 
             // Sanity check to clamp ratios to expected levels, shouldn't be needed if everything is working properly
-            ratio_brightness_fade_in = clamp(ratio_brightness_fade_in, 0.0, 1.0);
-            ratio_brightness_pulse = clamp(ratio_brightness_pulse, 0.0, 1.0);
-            ratio_brightness_background = clamp(ratio_brightness_background, 0.0, 1.0);
+            ratio_brightness_fade_in_to_total = clamp(ratio_brightness_fade_in_to_total, 0.0, 1.0);
+            ratio_brightness_decay_to_total = clamp(ratio_brightness_decay_to_total, 0.0, 1.0);
+            ratio_brightness_background_to_total = clamp(ratio_brightness_background_to_total, 0.0, 1.0);
 
             // head section
             if(head_factor > 0.0){
@@ -1754,15 +1707,27 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
                 else{
                     display_output_hsl = hsl_pulse;
                 }
+
                 // Combine head with background 
-                ratio_brightness_background_to_head = ratio_normalized(current_location_brightness_background, display_output_hsl[2]);
-                display_output_hsl = interpolate_hsluv(hsl_background, display_output_hsl, ratio_brightness_background_to_head);
+                ratio_brightness_background_to_head = ratio_normalized(this_location_brightness_background, display_output_hsl[2]);
+                display_output_hsl = interpolate_hsluv(hsl_background, display_output_hsl, ratio_brightness_background_to_head);    //interpolate total HSLuv
             }
             // non-head section
             else{
-             
+                // check if first and last only decay mode is set
+
+                // Case: Not last LED. Disable decay.
+                if(fade_and_decay_first_and_last_led_only && (current_location_on_y_axis_of_display_as_percent_of_display < (1.0 - size_of_led_as_percent_of_display) ) ){
+                    decay_factor = 0.0;
+                }
+                // Case: Not first LED. Disable fade-in/
+                if(fade_and_decay_first_and_last_led_only && (current_location_on_y_axis_of_display_as_percent_of_display > (size_of_led_as_percent_of_display)) ){
+                    fade_in_factor = 0.0;
+                }
+                
+         
                 // Generate pulse decay & fade-in. Placement ahead / behind is defined by order of first 2 arguments.
-                display_output_hsl_hue = interpolate_hue(hsl_hue_fade_in, hsl_hue_pulse, ratio_brightness_fade_in_to_pulse);  
+                display_output_hsl_hue = interpolate_hue(hsl_hue_fade_in, hsl_hue_pulse, ratio_brightness_fade_in_to_pulse);    
 
                 // Set lightness & hue. 
                 // Consider clean up.
@@ -1778,22 +1743,26 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
                     display_output_hsl_saturation=hsl_background[1];
                 }
 
-                display_output_hsl = vec3(display_output_hsl_hue, display_output_hsl_saturation, display_output_hsl_lightness);
+                display_output_hsl = vec3(display_output_hsl_hue, display_output_hsl_saturation, display_output_hsl_lightness);    // interpolate hue only, use max saturation & lightness from other fields
 
 
                 // Blend background into existing output
-                display_output_hsl[0] = interpolate_hue(hsl_hue_background, display_output_hsl_hue, ratio_brightness_background_to_fade_in_and_pulse);
+                //display_output_hsl[0] = interpolate_hue(hsl_hue_background, display_output_hsl_hue, ratio_brightness_background_to_fade_in_and_pulse);    // interpolate hue only
+                display_output_hsl = interpolate_hsluv(hsl_background, display_output_hsl, ratio_brightness_background_to_fade_in_and_pulse);    // interpolate entire hsluv
 
+                // Apply alternate color if calculated brightness is below the minimum specified
+                if(this_location_brightness_total < (color_brightness_cutoff*100.0)){
+                    display_output_hsl = hsl_pause;
+                }
             }
 
+            
 
 
 
 
-            // Apply alternate color if calculated brightness is below the minimum specified
-            if(value_brightness_total < (color_brightness_cutoff*100.0)){
-                display_output_hsl = hsl_pause;
-            }
+
+
 
 
 
@@ -1825,7 +1794,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
                 }
                 if(debug_pulse && debug_fade_in){
                     display_output_hsl_hue = interpolate_hue(display_output_hsl_fade_in[0], display_output_hsl_pulse[0], ratio_brightness_fade_in_to_pulse);  // ratio or interpolation not working yet - seems to be shifting strongly toward black
-                    display_output_hsl_lightness = max(current_location_brightness_fade_in, current_location_brightness_pulse);
+                    display_output_hsl_lightness = max(this_location_brightness_fade_in, this_location_brightness_decay);
                     display_output_hsl_saturation = max(hsl_fade_in[1], hsl_pulse[1]);
                     display_output_hsl = vec3(display_output_hsl_hue, display_output_hsl_saturation, display_output_hsl_lightness);
                 }
@@ -1853,7 +1822,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
             display_output_hsl_hue = interpolate_hue(display_output_hsl_fade_in[0], display_output_hsl_pulse[0], ratio_brightness_fade_in_to_pulse);  // ratio_brightness_fade_in_to_pulse is not being set properly for columns 1-3
             //display_output_hsl_hue = interpolate_hue(display_output_hsl_fade_in[0], display_output_hsl_pulse[0], 0.0);
             //display_output_hsl_hue = interpolate_hue(display_output_hsl_fade_in[0], display_output_hsl_pulse[0], 1.0);
-            display_output_hsl_lightness = max(current_location_brightness_fade_in, current_location_brightness_pulse);
+            display_output_hsl_lightness = max(this_location_brightness_fade_in, this_location_brightness_decay);
             display_output_hsl_saturation = max(hsl_fade_in[1], hsl_pulse[1]);
             display_output_hsl = vec3(display_output_hsl_hue, display_output_hsl_saturation, display_output_hsl_lightness);
         }

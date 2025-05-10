@@ -19,7 +19,7 @@
 //
 const int size_of_display_in_columns = 11;    // how many parallel pulses to run
 const bool direction_movement_horizontal = false;
-const bool direction_movement_reversed = true;
+const bool direction_movement_reversed = false;
 const float duration_of_pause = 20.0;   //  Time between the front of the pulse leaving the screen and the next pulse appearing 
 const float duration_of_pulse = 10.0;    // Time taken for the front of the pulse to run across the display
 const float speed_global_modifier = 1.0;    // When set to 1.0, cycle will play at 1 second per unit of duration
@@ -937,6 +937,10 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     float size_of_cycle_as_percent_of_display = (duration_of_pause + duration_of_pulse) / duration_of_pulse;
     vec2 screen_location_adjusted_for_alignment_as_percent_of_display = get_display_location_as_percent_of_display_size(fragCoord);
     float current_location_on_y_axis_of_display_as_percent_of_display = screen_location_adjusted_for_alignment_as_percent_of_display.y;
+    float direction_adjusted_current_location_on_y_axis_of_display_as_percent_of_display = current_location_on_y_axis_of_display_as_percent_of_display;
+    if(direction_movement_reversed){
+        direction_adjusted_current_location_on_y_axis_of_display_as_percent_of_display = invert_value(current_location_on_y_axis_of_display_as_percent_of_display, 1.0);
+    }
     float pulse_location_as_percent_of_display = get_pulse_location_as_percent_of_display();
     vec2 distance_from_pulse = get_distance_of_current_location_from_pulse_as_percent_of_display(pulse_location_as_percent_of_display, current_location_on_y_axis_of_display_as_percent_of_display, size_of_cycle_as_percent_of_display);
     float distance_of_current_location_behind_pulse_as_percent_of_display = distance_from_pulse.x;
@@ -1023,7 +1027,6 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     decay_and_fade_offset = get_decay_and_fade_offsets(head_buffer_leds, head_buffer_alignment_in_leds, size_of_led_as_percent_of_display, size_pulse_head_in_leds);
     
     // Generate head
-    //float head_factor = generate_head(pulse_location_as_percent_of_display, current_location_on_y_axis_of_display_as_percent_of_display, distance_of_current_location_behind_pulse_as_percent_of_display, distance_of_current_location_in_front_of_pulse_as_percent_of_display, head_offset_as_percent_of_display, pulse);
     bool head_is_defined = define_led_element_at_offset_from_pulse_index(head_offset_in_leds, size_pulse_head_in_leds, size_of_display_in_leds, distance_of_current_location_in_front_of_pulse_as_percent_of_display, distance_of_current_location_behind_pulse_as_percent_of_display);
     float head_factor = -1.0;
     if(head_is_defined){
@@ -1387,13 +1390,11 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
                 // check if first and last only decay mode is set
 
                 // Case: Not last LED. Disable decay.
-                // #BUG# - not working in reverse
-                if(fade_and_decay_first_and_last_led_only && (current_location_on_y_axis_of_display_as_percent_of_display < (1.0 - size_of_led_as_percent_of_display) ) ){
+                if(fade_and_decay_first_and_last_led_only && (direction_adjusted_current_location_on_y_axis_of_display_as_percent_of_display < (1.0 - size_of_led_as_percent_of_display) ) ){
                     decay_factor = 0.0;
                 }
                 // Case: Not first LED. Disable fade-in.
-                // #BUG# - not working in reverse
-                if(fade_and_decay_first_and_last_led_only && (current_location_on_y_axis_of_display_as_percent_of_display > (size_of_led_as_percent_of_display)) ){
+                if(fade_and_decay_first_and_last_led_only && (direction_adjusted_current_location_on_y_axis_of_display_as_percent_of_display > (size_of_led_as_percent_of_display)) ){
                     fade_in_factor = 0.0;
                 }
          
